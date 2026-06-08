@@ -1,0 +1,234 @@
+# Language Pack: Java Spring Boot
+# Used by CodeArch SKILL.md
+
+id: java-spring
+name: Java / Spring Boot
+priority: 50
+projectType: spring-boot
+
+# Detection signals — match ANY ONE to select this pack
+signals:
+  - glob: "pom.xml"
+  - glob: "build.gradle"
+  - glob: "build.gradle.kts"
+  - pattern: "src/main/java/**/*Controller.java" + "@RestController"
+  - pattern: "src/main/java/**/*Controller.java" + "@Controller"
+
+# Source root directories
+sourceRoots:
+  - "src/main/java"
+  - "src/main/kotlin"
+
+# Directory → Layer/Type mapping
+directories:
+  controller/:         { type: Controller, layer: entry }
+  controller/*/:       { type: Controller, layer: entry }
+  "controller/**/":    { type: Controller, layer: entry }
+  service/:            { type: Service, layer: service }
+  "service/impl/":     { type: Service, layer: service }
+  "service/**/":        { type: Service, layer: service }
+  repository/:         { type: Repository, layer: data }
+  "repository/**/":    { type: Repository, layer: data }
+  entity/:             { type: Entity, layer: data }
+  "entity/**/":        { type: Entity, layer: data }
+  model/:              { type: Entity, layer: data }
+  "model/**/":        { type: Entity, layer: data }
+  dto/:                { type: Entity, layer: data }
+  "dto/**/":          { type: Entity, layer: data }
+  config/:             { type: Config, layer: infra }
+  "config/**/":        { type: Config, layer: infra }
+  listener/:           { type: Consumer, layer: event }
+  "listener/**/":      { type: Consumer, layer: event }
+  task/:               { type: Job, layer: job }
+  "task/**/":         { type: Job, layer: job }
+  client/:             { type: Client, layer: external }
+  gateway/:            { type: Client, layer: external }
+  "payment/gateway/":  { type: Client, layer: external }
+  kg/:                 { type: Service, layer: service }
+  "kg/**/":            { type: Service, layer: service }
+  rag/:                { type: Service, layer: service }
+  "rag/**/":           { type: Service, layer: service }
+
+# File suffix → Layer/Type mapping (fallback when directory not matched)
+fileSuffix:
+  Controller.java:   { type: Controller, layer: entry }
+  Service.java:      { type: Service, layer: service }
+  ServiceImpl.java:  { type: Service, layer: service }
+  Repository.java:   { type: Repository, layer: data }
+  Entity.java:       { type: Entity, layer: data }
+  Config.java:       { type: Config, layer: infra }
+  Consumer.java:     { type: Consumer, layer: event }
+  Listener.java:     { type: Consumer, layer: event }
+  Client.java:       { type: Client, layer: external }
+  Gateway.java:      { type: Client, layer: external }
+  Task.java:         { type: Job, layer: job }
+  Job.java:          { type: Job, layer: job }
+
+# Dependency inference patterns
+dependencyPatterns:
+  - pattern: "@Autowired\\s+(\\w+)\\s+(\\w+)"
+    fromType: "*"
+    toType: "$1"
+    confidence: explicit
+    description: "Field injection"
+  - pattern: "@Inject\\s+(\\w+)\\s+(\\w+)"
+    fromType: "*"
+    toType: "$1"
+    confidence: explicit
+    description: "Constructor/s field injection"
+  - pattern: "(@RequiredArgsConstructor|@AllArgsConstructor)"
+    fromType: "*"
+    toType: "constructor-injected fields"
+    confidence: explicit
+    description: "Lombok constructor injection"
+  - pattern: "extends\\s+(\\w+)"
+    fromType: "Entity"
+    toType: "$1"
+    confidence: explicit
+    description: "Entity inheritance"
+  - pattern: "implements\\s+(\\w+)"
+    fromType: "Service|Controller|Client"
+    toType: "$1"
+    confidence: explicit
+    description: "Interface implementation"
+  - pattern: "MongoRepository<(\\w+),"
+    fromType: "Service"
+    toType: "Repository"
+    confidence: explicit
+    description: "MongoDB repository"
+  - pattern: "JpaRepository<(\\w+),"
+    fromType: "Service"
+    toType: "Repository"
+    confidence: explicit
+    description: "JPA repository"
+  - pattern: "(Dao|Repository)<(\\w+),"
+    fromType: "Service"
+    toType: "Repository"
+    confidence: explicit
+    description: "Generic repository"
+  # Naming convention heuristics
+  - pattern: "(\\w+)Controller\\s+.*\\s+(\\w+)Service"
+    fromType: Controller
+    toType: Service
+    confidence: inferred
+    description: "Controller uses Service by naming"
+  - pattern: "(\\w+)Service(?:Impl)?\\s+.*\\s+(\\w+)Repository"
+    fromType: Service
+    toType: Repository
+    confidence: inferred
+    description: "Service uses Repository by naming"
+
+# Route extraction patterns
+routePatterns:
+  - annotation: "@GetMapping"
+    method: GET
+    pathExtract: '(?:value|path)\\s*=\\s*"([^"]+)"'
+  - annotation: "@PostMapping"
+    method: POST
+    pathExtract: '(?:value|path)\\s*=\\s*"([^"]+)"'
+  - annotation: "@PutMapping"
+    method: PUT
+    pathExtract: '(?:value|path)\\s*=\\s*"([^"]+)"'
+  - annotation: "@DeleteMapping"
+    method: DELETE
+    pathExtract: '(?:value|path)\\s*=\\s*"([^"]+)"'
+  - annotation: "@PatchMapping"
+    method: PATCH
+    pathExtract: '(?:value|path)\\s*=\\s*"([^"]+)"'
+  - annotation: "@RequestMapping"
+    method: GET
+    pathExtract: '(?:value|path)\\s*=\\s*"([^"]+)"'
+    description: "Default method is GET for @RequestMapping"
+  - annotation: "@RestController"
+    description: "Class-level annotation indicating REST controller"
+
+# Async / event patterns
+asyncPatterns:
+  - annotation: "@Async"
+    type: job
+    description: "Asynchronous method execution"
+  - annotation: "@Scheduled"
+    type: scheduled-job
+    description: "Scheduled task"
+  - annotation: "@EventListener"
+    type: event-consumer
+    description: "Event listener"
+  - annotation: "@KafkaListener"
+    type: kafka-consumer
+    description: "Kafka message consumer"
+  - annotation: "@RabbitListener"
+    type: rabbitmq-consumer
+    description: "RabbitMQ message consumer"
+
+# Mermaid classDef colors (CSS fill/stroke)
+mermaidTheme:
+  entry:     { fill: "#1a1a2e", stroke: "#e94560", color: "#fff" }
+  service:   { fill: "#16213e", stroke: "#0f3460", color: "#e0e0e0" }
+  data:      { fill: "#0f3460", stroke: "#53d8fb", color: "#fff" }
+  infra:     { fill: "#1b1b2f", stroke: "#a29bfe", color: "#e0e0e0" }
+  external:  { fill: "#2d2d44", stroke: "#ffd93d", color: "#fff" }
+  job:       { fill: "#1b1b2f", stroke: "#6bcb77", color: "#fff" }
+  event:     { fill: "#1b1b2f", stroke: "#ff6b6b", color: "#fff" }
+
+# External service detection
+externalServicePatterns:
+  - configKey: "spring.datasource.url"
+    serviceType: "database"
+    pattern: "(mysql|postgresql|mariadb|sqlserver):\\/\\/"
+    type: "explicit"
+  - configKey: "spring.data.redis"
+    serviceType: "cache"
+    pattern: "redis"
+    type: "explicit"
+  - configKey: "spring.data.mongodb.uri"
+    serviceType: "database"
+    pattern: "mongodb"
+    type: "explicit"
+  - configKey: "spring.neo4j.uri"
+    serviceType: "graph"
+    pattern: "neo4j"
+    type: "explicit"
+  - configKey: "spring.kafka"
+    serviceType: "queue"
+    pattern: "kafka"
+    type: "explicit"
+  - configKey: "spring.elasticsearch"
+    serviceType: "search"
+    pattern: "elasticsearch|opensearch"
+    type: "explicit"
+  - configKey: "ai.rag.vector-store"
+    serviceType: "vector"
+    pattern: "qdrant|chroma|weaviate|pincone"
+    type: "explicit"
+  - configKey: "aws"
+    serviceType: "object-storage"
+    pattern: "s3|minio"
+    type: "explicit"
+  - configKey: "spring.mail"
+    serviceType: "email"
+    pattern: "smtp|mail"
+    type: "explicit"
+  # Third-party API detection from imports
+  - import: "com.alipay"
+    serviceType: "payment"
+    configKey: "alipay.app-id"
+    type: "explicit"
+  - import: "org.deepseek"
+    serviceType: "llm-api"
+    configKey: "ai.deepseek.api-key"
+    type: "explicit"
+  - import: "com.openai"
+    serviceType: "llm-api"
+    configKey: "openai.api-key"
+    type: "explicit"
+
+# Component ID prefix mapping
+idPrefix:
+  Controller: "E_"
+  Service:    "S_"
+  Repository: "R_"
+  Entity:     "D_"
+  Config:     "C_"
+  Client:     "X_"
+  Consumer:   "E_"
+  Job:        "E_"

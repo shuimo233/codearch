@@ -1,0 +1,169 @@
+# Language Pack: Node.js / Express
+# Used by CodeArch SKILL.md
+
+id: nodejs-express
+name: Node.js / Express
+priority: 30
+projectType: nodejs
+
+signals:
+  - glob: "package.json"
+    condition: "!build.gradle && !pom.xml && !go.mod"
+  - pattern: "node_modules/.bin/node"
+  - pattern: '"express":' in package.json
+  - pattern: '"koa":' in package.json
+  - pattern: '"fastify":' in package.json
+  - pattern: '"hono":' in package.json
+
+sourceRoots:
+  - "src"
+  - "app"
+  - "server"
+
+directories:
+  routes/:      { type: Router, layer: entry }
+  controllers/: { type: Controller, layer: service }
+  services/:    { type: Service, layer: service }
+  models/:      { type: Entity, layer: data }
+  schemas/:      { type: Entity, layer: data }
+  middlewares/:  { type: Config, layer: infra }
+  middleware/:   { type: Config, layer: infra }
+  config/:      { type: Config, layer: infra }
+  utils/:       { type: Config, layer: infra }
+  helpers/:     { type: Config, layer: infra }
+  clients/:     { type: Client, layer: external }
+  external/:    { type: Client, layer: external }
+  jobs/:        { type: Job, layer: job }
+  workers/:     { type: Job, layer: job }
+  tasks/:       { type: Job, layer: job }
+  listeners/:   { type: Consumer, layer: event }
+  events/:      { type: Consumer, layer: event }
+
+fileSuffix:
+  Route.js:     { type: Router, layer: entry }
+  Router.js:    { type: Router, layer: entry }
+  Controller.js:{ type: Controller, layer: service }
+  Service.js:   { type: Service, layer: service }
+  Model.js:     { type: Entity, layer: data }
+  Schema.js:    { type: Entity, layer: data }
+  Middleware.js:{ type: Config, layer: infra }
+  Config.js:    { type: Config, layer: infra }
+  Client.js:    { type: Client, layer: external }
+  Job.js:       { type: Job, layer: job }
+  Worker.js:    { type: Job, layer: job }
+  Listener.js:  { type: Consumer, layer: event }
+
+dependencyPatterns:
+  # Explicit import/require
+  - pattern: "(?:const|let|var)\\s+\\{?\\s*(\\w+)\\s*\\}?\\s*=\\s*(?:require\\(['\"]([^'\"]+)['\"]\\)|import\\s+.*\\s+from\\s+['\"]([^'\"]+)['\"])"
+    fromType: "*"
+    toType: "$2 or $3 (module)"
+    confidence: explicit
+    description: "Module import"
+  # Express router patterns
+  - pattern: "(?:router|Route)\\.(get|post|put|delete|patch|use)\\(['\"]([^'\"]+)['\"]"
+    fromType: Router
+    toType: Handler
+    confidence: explicit
+    description: "Route registration"
+  # Controller → Service (by naming)
+  - pattern: "(\\w+)Controller"
+    toType: Service
+    confidence: inferred
+    description: "Controller likely uses corresponding Service"
+  # Service → Model/Repository
+  - pattern: "(\\w+)Service.*(?:find|create|update|delete|save|get)"
+    toType: Entity
+    confidence: inferred
+    description: "Service likely interacts with Model"
+  # Kafka / message queue consumers
+  - pattern: "kafka|consumer|producer|broker"
+    serviceType: "queue"
+    confidence: inferred
+    description: "Kafka messaging"
+
+routePatterns:
+  - pattern: "(?:router|app)\\.(get|post|put|delete|patch|head|options)\\(['\"]([^'\"]+)['\"]"
+    methodExtract: "$1 (uppercase)"
+    pathExtract: "$2"
+  - pattern: "app\\.use\\(.*['\"]([^'\"]+)['\"]"
+    method: "USE"
+    pathExtract: "$1"
+  - pattern: "router\\.(get|post|put|delete|patch)\\(['\"]([^'\"]+)['\"]"
+    methodExtract: "$1 (uppercase)"
+    pathExtract: "$2"
+
+asyncPatterns:
+  - pattern: "kafkajs|Kafka|producer|consumer"
+    type: kafka-consumer
+    description: "Kafka message consumer"
+  - pattern: "bull|Queue|worker|job\\.process"
+    type: job
+    description: "Background job / queue worker"
+  - pattern: "socket\\.io|WebSocket|ws\\."
+    type: event-consumer
+    description: "WebSocket connection handler"
+  - pattern: "EventEmitter|emit\\(|on\\("
+    type: event-consumer
+    description: "Event-driven handler"
+
+mermaidTheme:
+  entry:     { fill: "#2d5016", stroke: "#6bcb77", color: "#fff" }
+  service:   { fill: "#1a3a0f", stroke: "#a8e063", color: "#fff" }
+  data:      { fill: "#0d1f1f", stroke: "#53d8fb", color: "#fff" }
+  infra:     { fill: "#1a1a2e", stroke: "#a29bfe", color: "#e0e0e0" }
+  external:  { fill: "#2d2d44", stroke: "#ffd93d", color: "#fff" }
+  job:       { fill: "#1b1b2f", stroke: "#ff9f43", color: "#fff" }
+  event:     { fill: "#1b1b2f", stroke: "#ff6b6b", color: "#fff" }
+
+externalServicePatterns:
+  - configKey: "DATABASE_URL|MONGODB_URI"
+    serviceType: "database"
+    pattern: "mongodb|postgres|mysql|mariadb"
+    type: "explicit"
+  - configKey: "REDIS_URL|REDIS_HOST"
+    serviceType: "cache"
+    pattern: "redis"
+    type: "explicit"
+  - configKey: "KAFKA_BROKERS|RDKAFKA"
+    serviceType: "queue"
+    pattern: "kafka"
+    type: "explicit"
+  - configKey: "AWS_|S3_BUCKET"
+    serviceType: "object-storage"
+    pattern: "s3|aws"
+    type: "explicit"
+  - configKey: "OPENAI_API_KEY"
+    serviceType: "llm-api"
+    pattern: "openai|gpt"
+    type: "explicit"
+  - configKey: "STRIPE_KEY"
+    serviceType: "payment"
+    pattern: "stripe"
+    type: "explicit"
+  - configKey: "SENDGRID_API_KEY|SMTP_HOST"
+    serviceType: "email"
+    pattern: "sendgrid|mailgun|smtp|nodemailer"
+    type: "explicit"
+  - import: "mongoose"
+    serviceType: "database"
+    type: "explicit"
+  - import: "ioredis|redis"
+    serviceType: "cache"
+    type: "explicit"
+  - import: "kafkajs|node-rdkafka"
+    serviceType: "queue"
+    type: "explicit"
+  - import: "elasticsearch"
+    serviceType: "search"
+    type: "explicit"
+
+idPrefix:
+  Router:    "E_"
+  Controller:"S_"
+  Service:   "S_"
+  Entity:    "D_"
+  Config:    "C_"
+  Client:    "X_"
+  Job:       "E_"
+  Consumer:  "E_"

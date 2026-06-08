@@ -1,0 +1,215 @@
+# Language Pack: Python / FastAPI
+# Used by CodeArch SKILL.md
+
+id: python-fastapi
+name: Python / FastAPI
+priority: 30
+projectType: python
+
+signals:
+  - glob: "requirements.txt"
+    condition: "!package.json && !pom.xml && !go.mod"
+  - glob: "pyproject.toml"
+  - pattern: '"fastapi"' in requirements.txt
+  - pattern: '"starlette"' in requirements.txt
+  - pattern: '"flask"' in requirements.txt
+  - pattern: '"django"' in requirements.txt
+  - pattern: '"uvicorn"' in requirements.txt
+  - pattern: '"gunicorn"' in requirements.txt
+  - pattern: '"aiohttp"' in requirements.txt
+  - pattern: '"httpx"' in requirements.txt
+
+sourceRoots:
+  - "app"
+  - "src"
+  - "."
+
+directories:
+  routers/:      { type: Router, layer: entry }
+  routes/:        { type: Router, layer: entry }
+  controllers/:   { type: Controller, layer: service }
+  services/:      { type: Service, layer: service }
+  models/:        { type: Entity, layer: data }
+  schemas/:       { type: Entity, layer: data }
+  crud/:          { type: Repository, layer: data }
+  core/:          { type: Config, layer: infra }
+  config/:        { type: Config, layer: infra }
+  utils/:         { type: Config, layer: infra }
+  helpers/:       { type: Config, layer: infra }
+  clients/:       { type: Client, layer: external }
+  external/:      { type: Client, layer: external }
+  tasks/:         { type: Job, layer: job }
+  jobs/:          { type: Job, layer: job }
+  workers/:       { type: Job, layer: job }
+  consumers/:     { type: Consumer, layer: event }
+  subscribers/:   { type: Consumer, layer: event }
+  middleware/:    { type: Config, layer: infra }
+  middlewares/:   { type: Config, layer: infra }
+
+fileSuffix:
+  router.py:      { type: Router, layer: entry }
+  route.py:       { type: Router, layer: entry }
+  controller.py:  { type: Controller, layer: service }
+  service.py:     { type: Service, layer: service }
+  model.py:       { type: Entity, layer: data }
+  schema.py:      { type: Entity, layer: data }
+  schemas.py:     { type: Entity, layer: data }
+  crud.py:        { type: Repository, layer: data }
+  repository.py:  { type: Repository, layer: data }
+  config.py:      { type: Config, layer: infra }
+  settings.py:    { type: Config, layer: infra }
+  client.py:      { type: Client, layer: external }
+  tasks.py:       { type: Job, layer: job }
+  job.py:         { type: Job, layer: job }
+  worker.py:      { type: Job, layer: job }
+  consumer.py:    { type: Consumer, layer: event }
+
+dependencyPatterns:
+  # Explicit import
+  - pattern: "from\\s+(\\S+)\\s+import"
+    fromType: "*"
+    toType: "$1 (module)"
+    confidence: explicit
+    description: "Python import"
+  - pattern: "import\\s+(\\S+)"
+    fromType: "*"
+    toType: "$1 (module)"
+    confidence: explicit
+    description: "Python module import"
+  # FastAPI router → service
+  - pattern: "@router\\.(get|post|put|delete|patch)\\(['\"]"
+    fromType: Router
+    toType: Service
+    confidence: explicit
+    description: "FastAPI route handler"
+  - pattern: "@app\\.(get|post|put|delete|patch)\\(['\"]"
+    fromType: Router
+    toType: Service
+    confidence: explicit
+    description: "FastAPI app route"
+  - pattern: "APIRouter\\(\\)"
+    fromType: Router
+    confidence: explicit
+    description: "APIRouter declaration"
+  # Service → Repository/Model
+  - pattern: "(\\w+)Service.*def\\s+\\w+.*(?:db|session|query|crud)"
+    toType: Repository
+    confidence: inferred
+    description: "Service uses database"
+  - pattern: "(?:session|db|engine)\\s*="   # FastAPI Depends(get_db)
+    toType: Repository
+    confidence: inferred
+    description: "Database session injection"
+  # Celery / task queues
+  - pattern: "@celery\\.task|@shared_task|@task\\(.*\\)"
+    type: job
+    confidence: explicit
+    description: "Celery task"
+
+routePatterns:
+  - pattern: '@router\\.(get|post|put|delete|patch|head|options)\\(["\']([^"\']+)["\']'
+    methodExtract: "$1 (uppercase)"
+    pathExtract: "$2"
+  - pattern: '@app\\.(get|post|put|delete|patch|head|options)\\(["\']([^"\']+)["\']'
+    methodExtract: "$1 (uppercase)"
+    pathExtract: "$2"
+  - pattern: '@router\\.api_route\\(["\']([^"\']+)["\']'
+    method: "API_ROUTE"
+    pathExtract: "$1"
+  - pattern: 'url_for\\(["\']([^"\']+)["\']'
+    method: "GENERATED"
+    pathExtract: "$1"
+
+asyncPatterns:
+  - pattern: "@celery\\.task|@shared_task"
+    type: job
+    description: "Celery background task"
+  - pattern: "aiokafka|AIOKafkaConsumer"
+    type: kafka-consumer
+    description: "Async Kafka consumer"
+  - pattern: "pika|rabbitmq|aio-pika"
+    type: rabbitmq-consumer
+    description: "RabbitMQ consumer"
+  - pattern: "websockets|websocket|WebSocket"
+    type: event-consumer
+    description: "WebSocket handler"
+  - pattern: "@pytest\\.fixture"
+    type: excluded
+    description: "Test fixture (skip)"
+
+mermaidTheme:
+  entry:     { fill: "#1c3144", stroke: "#00d9ff", color: "#fff" }
+  service:   { fill: "#0d1b2a", stroke: "#3a86ff", color: "#fff" }
+  data:      { fill: "#1b2d3e", stroke: "#53d8fb", color: "#fff" }
+  infra:     { fill: "#1a1a2e", stroke: "#a29bfe", color: "#e0e0e0" }
+  external:  { fill: "#2d2d44", stroke: "#ffd93d", color: "#fff" }
+  job:       { fill: "#1b1b2f", stroke: "#6bcb77", color: "#fff" }
+  event:     { fill: "#1b1b2f", stroke: "#ff6b6b", color: "#fff" }
+
+externalServicePatterns:
+  - configKey: "DATABASE_URL|MONGODB_URL"
+    serviceType: "database"
+    pattern: "postgresql|mysql|mongodb|sqlite"
+    type: "explicit"
+  - configKey: "REDIS_URL|REDIS_HOST"
+    serviceType: "cache"
+    pattern: "redis"
+    type: "explicit"
+  - configKey: "CELERY_BROKER_URL|CELERY_RESULT_BACKEND"
+    serviceType: "queue"
+    pattern: "redis|amqp|sqs"
+    type: "explicit"
+  - configKey: "AWS_|S3_BUCKET|S3_ENDPOINT"
+    serviceType: "object-storage"
+    pattern: "s3|minio|boto"
+    type: "explicit"
+  - configKey: "OPENAI_API_KEY"
+    serviceType: "llm-api"
+    pattern: "openai"
+    type: "explicit"
+  - configKey: "STRIPE_KEY|STRIPE_SECRET"
+    serviceType: "payment"
+    pattern: "stripe"
+    type: "explicit"
+  - configKey: "SMTP_HOST|SMTP_SERVER|EMAIL_HOST"
+    serviceType: "email"
+    pattern: "smtp|sendgrid|mailgun"
+    type: "explicit"
+  - import: "sqlalchemy"
+    serviceType: "database"
+    type: "explicit"
+  - import: "motor|aiomongo"
+    serviceType: "database"
+    type: "explicit"
+  - import: "redis|aioredis"
+    serviceType: "cache"
+    type: "explicit"
+  - import: "celery"
+    serviceType: "queue"
+    type: "explicit"
+  - import: "boto3"
+    serviceType: "object-storage"
+    type: "explicit"
+  - import: "elasticsearch|opensearch"
+    serviceType: "search"
+    type: "explicit"
+  - import: "kafka-python|aiokafka"
+    serviceType: "queue"
+    type: "explicit"
+  - import: "pika|aio_pika"
+    serviceType: "queue"
+    type: "explicit"
+  - import: "requests|httpx|aiohttp"
+    serviceType: "http-client"
+    type: "explicit"
+
+idPrefix:
+  Router:    "E_"
+  Controller:"S_"
+  Service:   "S_"
+  Repository:"R_"
+  Entity:    "D_"
+  Config:    "C_"
+  Client:    "X_"
+  Job:       "E_"
+  Consumer:  "E_"

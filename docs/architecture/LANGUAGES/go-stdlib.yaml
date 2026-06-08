@@ -1,0 +1,207 @@
+# Language Pack: Go / stdlib + chi + Gin
+# Used by CodeArch SKILL.md
+
+id: go-stdlib
+name: Go / stdlib
+priority: 30
+projectType: go
+
+signals:
+  - glob: "go.mod"
+  - pattern: "go 1\\.(1[89]|[2-9][0-9])" in go.mod
+  - pattern: "module\\s+" in go.mod
+  - pattern: "package\\s+main" in *.go files
+
+sourceRoots:
+  - "."
+  - "cmd"
+  - "internal"
+  - "pkg"
+
+directories:
+  cmd/:           { type: Handler, layer: entry }
+  "cmd/*/":       { type: Handler, layer: entry }
+  handlers/:      { type: Handler, layer: entry }
+  handler/:       { type: Handler, layer: entry }
+  controllers/:   { type: Handler, layer: entry }
+  routes/:        { type: Handler, layer: entry }
+  services/:      { type: Service, layer: service }
+  service/:       { type: Service, layer: service }
+  business/:      { type: Service, layer: service }
+  models/:        { type: Entity, layer: data }
+  types/:         { type: Entity, layer: data }
+  entities/:      { type: Entity, layer: data }
+  repository/:    { type: Repository, layer: data }
+  store/:         { type: Repository, layer: data }
+  dao/:           { type: Repository, layer: data }
+  config/:        { type: Config, layer: infra }
+  configs/:       { type: Config, layer: infra }
+  middleware/:    { type: Config, layer: infra }
+  middlewares/:   { type: Config, layer: infra }
+  client/:        { type: Client, layer: external }
+  clients/:       { type: Client, layer: external }
+  external/:      { type: Client, layer: external }
+  pkg/:           { type: Service, layer: service }
+  internal/:      { type: Service, layer: service }
+
+fileSuffix:
+  main.go:       { type: Handler, layer: entry }
+  handler.go:    { type: Handler, layer: entry }
+  controller.go: { type: Handler, layer: entry }
+  route.go:      { type: Handler, layer: entry }
+  router.go:     { type: Handler, layer: entry }
+  service.go:    { type: Service, layer: service }
+  business.go:   { type: Service, layer: service }
+  model.go:      { type: Entity, layer: data }
+  entity.go:     { type: Entity, layer: data }
+  repository.go:  { type: Repository, layer: data }
+  store.go:      { type: Repository, layer: data }
+  dao.go:        { type: Repository, layer: data }
+  config.go:     { type: Config, layer: infra }
+  settings.go:   { type: Config, layer: infra }
+  client.go:     { type: Client, layer: external }
+  job.go:        { type: Job, layer: job }
+  worker.go:     { type: Job, layer: job }
+
+dependencyPatterns:
+  # Explicit import
+  - pattern: "import\\s+[\\\"']([^\\\"']+)[\\\"']"
+    fromType: "*"
+    toType: "$1 (package)"
+    confidence: explicit
+    description: "Go import"
+  # HTTP handler registration
+  - pattern: "(?:http\\.)?HandleFunc\\(['\"]([^'\"]+)['\"]"
+    fromType: Handler
+    toType: Handler
+    confidence: explicit
+    description: "http.HandleFunc route registration"
+  - pattern: "router\\.(?:Handle|HandleFunc|Method|Get|Post|Put|Delete)\\(['\"]([^'\"]+)['\"]"
+    fromType: Handler
+    toType: Handler
+    confidence: explicit
+    description: "Router route registration"
+  # Gin router patterns
+  - pattern: "(?:v1|v\\d+|api|grp)\\.(?:GET|POST|PUT|DELETE|PATCH)\\(['\"]([^'\"]+)['\"]"
+    fromType: Handler
+    toType: Handler
+    confidence: explicit
+    description: "Gin route registration"
+  - pattern: "r\\.(?:Group|Handle)\\(['\"]([^'\"]+)['\"]"
+    fromType: Handler
+    toType: Handler
+    confidence: explicit
+    description: "Chi router group"
+  # Constructor / factory functions
+  - pattern: "func New(\\w+)\\("
+    description: "Constructor function"
+    confidence: inferred
+  # Interface implementation (struct with methods)
+  - pattern: "func \\(.*\\) \\w+\\(.*\\) \\w+\\(\\) \\{"
+    description: "Method on struct"
+    confidence: inferred
+  # Dependency injection via struct fields
+  - pattern: "(\\w+)\\s+\\*?(\\w+Service|\\w+Repo|\\w+Client)"
+    fromType: "Service|Handler|Repository"
+    toType: "$2"
+    confidence: explicit
+    description: "Struct field dependency"
+
+routePatterns:
+  - pattern: "(?:http\\.)?HandleFunc\\(['\"]([^'\"]+)['\"](?:,\\s*(\\w+))?"
+    method: "HANDLER"
+    pathExtract: "$1"
+    handlerExtract: "$2"
+  - pattern: "router\\.(?:GET|POST|PUT|DELETE|PATCH|HEAD|OPTIONS)\\(['\"]([^'\"]+)['\"]"
+    methodExtract: "match (uppercase)"
+    pathExtract: "$1"
+  - pattern: "r\\.(?:Get|Post|Put|Delete|Patch|Head)\\(['\"]([^'\"]+)['\"]"
+    methodExtract: "match (uppercase)"
+    pathExtract: "$1"
+  - pattern: '(?:v\\d+|v1|api|grp)\\.(?:GET|POST|PUT|DELETE|PATCH)\\(["\']([^"\']+)["\']'
+    methodExtract: "match (uppercase)"
+    pathExtract: "$1"
+  - pattern: "\\{(\\w+)\\}"
+    description: "Path parameter placeholder"
+
+asyncPatterns:
+  - pattern: "goroutine|go\\s+func|go\\s+channel"
+    type: job
+    description: "Goroutine / async execution"
+  - pattern: "worker|pool|workerpool"
+    type: job
+    description: "Worker pool"
+  - pattern: "kafka.*consumer|Consumer\\.Group"
+    type: kafka-consumer
+    description: "Kafka consumer"
+  - pattern: "mqtt|AMQP|rabbitmq"
+    type: rabbitmq-consumer
+    description: "MQTT / AMQP consumer"
+
+mermaidTheme:
+  entry:     { fill: "#003d5b", stroke: "#00a8e8", color: "#fff" }
+  service:   { fill: "#001d3d", stroke: "#0077b6", color: "#fff" }
+  data:      { fill: "#002855", stroke: "#53d8fb", color: "#fff" }
+  infra:     { fill: "#1a1a2e", stroke: "#a29bfe", color: "#e0e0e0" }
+  external:  { fill: "#2d2d44", stroke: "#ffd93d", color: "#fff" }
+  job:       { fill: "#1b1b2f", stroke: "#6bcb77", color: "#fff" }
+  event:     { fill: "#1b1b2f", stroke: "#ff6b6b", color: "#fff" }
+
+externalServicePatterns:
+  - configKey: "DATABASE_URL|DSN"
+    serviceType: "database"
+    pattern: "postgres|mysql|mongodb|sqlite"
+    type: "explicit"
+  - configKey: "REDIS_URL|REDIS_ADDR"
+    serviceType: "cache"
+    pattern: "redis"
+    type: "explicit"
+  - configKey: "KAFKA_BROKERS|RDKAFKA"
+    serviceType: "queue"
+    pattern: "kafka|sarama|kafka-go"
+    type: "explicit"
+  - configKey: "AWS_|S3_ENDPOINT|S3_BUCKET"
+    serviceType: "object-storage"
+    pattern: "s3|minio|aws-sdk"
+    type: "explicit"
+  - configKey: "OPENAI_API_KEY"
+    serviceType: "llm-api"
+    pattern: "openai|gpt"
+    type: "explicit"
+  - import: "github.com/lib/pq"
+    serviceType: "database"
+    type: "explicit"
+  - import: "github.com/go-sql-driver/mysql"
+    serviceType: "database"
+    type: "explicit"
+  - import: "github.com/redis/go-redis"
+    serviceType: "cache"
+    type: "explicit"
+  - import: "github.com/segmentio/kafka-go"
+    serviceType: "queue"
+    type: "explicit"
+  - import: "github.com/aws/aws-sdk-go"
+    serviceType: "object-storage"
+    type: "explicit"
+  - import: "github.com/elastic/go-elasticsearch"
+    serviceType: "search"
+    type: "explicit"
+  - import: "google.golang.org/grpc"
+    serviceType: "rpc"
+    type: "explicit"
+  - import: "github.com/grpc-ecosystem/grpc-gateway"
+    serviceType: "rpc-gateway"
+    type: "explicit"
+  - import: "go.mongodb.org/mongo-driver"
+    serviceType: "database"
+    type: "explicit"
+
+idPrefix:
+  Handler:   "E_"
+  Service:   "S_"
+  Repository:"R_"
+  Entity:    "D_"
+  Config:    "C_"
+  Client:    "X_"
+  Job:       "E_"
+  Consumer:  "E_"

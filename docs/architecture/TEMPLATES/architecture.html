@@ -1,0 +1,1561 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CodeArch — Architecture Diagram</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.0/dist/mermaid.min.js"></script>
+    <style>
+        :root, :root[data-theme="light"] {
+            --bg: #f0f4f8;
+            --surface: #ffffff;
+            --header-bg: #ffffff;
+            --border: #dde3ec;
+            --text: #2c3e50;
+            --text-sec: #6c7a89;
+            --text-dim: #95a5a6;
+            --accent: #3498db;
+            --accent-h: #2980b9;
+            --accent-bg: #eaf4fb;
+            --success: #27ae60;
+            --warning: #f39c12;
+            --danger: #e74c3c;
+            --shadow: 0 1px 3px rgba(0,0,0,0.08);
+            --shadow-lg: 0 4px 12px rgba(0,0,0,0.1);
+            --mermaid-bg: #f0f4f8;
+            --scrollbar: #dde3ec;
+            --hover-bg: #eaf4fb;
+        }
+
+        :root[data-theme="dark"] {
+            --bg: #1a1a2e;
+            --surface: #16213e;
+            --header-bg: #16213e;
+            --border: #0f3460;
+            --text: #e0e0e0;
+            --text-sec: #95a5a6;
+            --text-dim: #6c7a89;
+            --accent: #3498db;
+            --accent-h: #5dade2;
+            --accent-bg: #1a3a5c;
+            --success: #2ecc71;
+            --warning: #f1c40f;
+            --danger: #e74c3c;
+            --shadow: 0 1px 3px rgba(0,0,0,0.3);
+            --shadow-lg: 0 4px 12px rgba(0,0,0,0.4);
+            --mermaid-bg: #1a1a2e;
+            --scrollbar: #0f3460;
+            --hover-bg: #1a3a5c;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            height: 100vh;
+            overflow: hidden;
+            font-size: 13px;
+        }
+
+        .header {
+            background: var(--header-bg);
+            padding: 8px 16px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            border-bottom: 1px solid var(--border);
+            box-shadow: var(--shadow);
+            height: 48px;
+            flex-shrink: 0;
+            z-index: 10;
+        }
+        .header-title {
+            font-weight: 700;
+            font-size: 14px;
+            color: var(--accent);
+            margin-right: 8px;
+            white-space: nowrap;
+            letter-spacing: -0.3px;
+        }
+        .header input {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 5px 10px;
+            border-radius: 6px;
+            font-size: 12px;
+            transition: border-color 0.2s;
+        }
+        .header input:focus {
+            outline: none;
+            border-color: var(--accent);
+            background: var(--surface);
+        }
+        .search-full { flex: 1; max-width: 280px; }
+        .base-url-input { width: 180px; }
+        .btn {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            color: var(--text-sec);
+            padding: 5px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            font-family: inherit;
+            white-space: nowrap;
+            transition: background 0.15s, border-color 0.15s, color 0.15s;
+        }
+        .btn:hover {
+            background: var(--accent-bg);
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+        .btn.active {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: #fff;
+        }
+
+        .main { display: flex; height: calc(100vh - 48px); }
+
+        .panel-left {
+            width: 252px;
+            background: var(--surface);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            box-shadow: 2px 0 4px rgba(0,0,0,0.04);
+        }
+        .tab-bar {
+            display: flex;
+            background: var(--bg);
+            border-bottom: 1px solid var(--border);
+        }
+        .tab {
+            flex: 1;
+            padding: 9px 0;
+            cursor: pointer;
+            font-size: 12px;
+            color: var(--text-sec);
+            border-bottom: 2px solid transparent;
+            text-align: center;
+            transition: color 0.15s, border-color 0.15s;
+        }
+        .tab.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
+        .tab:hover { color: var(--text); }
+
+        .panel-content { flex: 1; overflow-y: auto; padding: 8px 0; }
+        .panel-content::-webkit-scrollbar { width: 5px; }
+        .panel-content::-webkit-scrollbar-track { background: transparent; }
+        .panel-content::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+        .layer-group { margin-bottom: 4px; }
+        .layer-title {
+            font-size: 10px;
+            color: var(--text-dim);
+            padding: 6px 12px 3px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 600;
+        }
+        .tree-node {
+            padding: 6px 12px;
+            cursor: pointer;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            transition: background 0.12s;
+            border-left: 2px solid transparent;
+        }
+        .tree-node:hover { background: var(--hover-bg); border-left-color: var(--accent); }
+        .tree-node.selected { background: var(--hover-bg); border-left-color: var(--accent); color: var(--accent); }
+        .tree-node .dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+        .tree-node .label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .tree-node .badge {
+            font-size: 9px; padding: 1px 5px; border-radius: 10px;
+            background: var(--accent); color: #fff; font-weight: 600; flex-shrink: 0;
+        }
+        .tree-node .badge.POST { background: #3498db; }
+        .tree-node .badge.PUT { background: var(--warning); }
+        .tree-node .badge.DELETE { background: var(--danger); }
+        .tree-node .badge.PATCH { background: #9b59b6; }
+
+        .endpoint-item {
+            padding: 8px 12px;
+            border-bottom: 1px solid var(--border);
+            cursor: pointer;
+            font-size: 12px;
+            transition: background 0.12s;
+            border-left: 2px solid transparent;
+        }
+        .endpoint-item:hover { background: var(--accent-bg); border-left-color: var(--accent); }
+        .endpoint-item.selected { background: var(--accent-bg); border-left-color: var(--accent); }
+        .endpoint-item .method { font-weight: 700; margin-right: 6px; font-size: 11px; }
+        .endpoint-item .path { color: var(--text); font-family: 'Consolas', monospace; font-size: 11px; }
+        .endpoint-item .meta { color: var(--text-sec); font-size: 10px; margin-top: 1px; }
+
+        .panel-center {
+            flex: 1;
+            overflow: hidden;
+            background: var(--bg);
+            display: flex;
+            flex-direction: column;
+        }
+        .zoom-bar {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            padding: 6px 12px;
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
+        }
+        .zoom-label { font-size: 11px; color: var(--text-sec); margin-right: 4px; }
+        .zoom-btn {
+            padding: 2px 9px;
+            font-size: 13px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            color: var(--accent);
+            cursor: pointer;
+            border-radius: 4px;
+            font-family: inherit;
+            transition: background 0.12s, border-color 0.12s;
+        }
+        .zoom-btn:hover { background: var(--accent-bg); border-color: var(--accent); }
+        .zoom-level { font-size: 12px; color: var(--text); min-width: 38px; text-align: center; font-weight: 500; }
+        .zoom-sep { width: 1px; height: 16px; background: var(--border); margin: 0 4px; }
+
+        .tab-bar { display: flex; gap: 4px; padding: 6px 8px; border-bottom: 1px solid var(--border); background: var(--surface); }
+        .tab-btn { padding: 4px 14px; border: 1px solid var(--border); border-radius: 4px; background: var(--surface); color: var(--text-sec); font-size: 13px; cursor: pointer; transition: all 0.15s; }
+        .tab-btn:hover { border-color: var(--accent); color: var(--accent); }
+        .tab-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+        .canvas-wrap {
+            flex: 1;
+            overflow: hidden;
+            position: relative;
+            cursor: grab;
+            background: var(--bg);
+        }
+        .canvas-wrap:active { cursor: grabbing; }
+        .canvas-inner {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transform-origin: 50% 50%;
+        }
+        .canvas-inner svg { max-width: none !important; }
+        .canvas-hint {
+            position: absolute;
+            bottom: 10px; left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255,255,255,0.9);
+            color: var(--text-dim);
+            font-size: 10px;
+            padding: 3px 10px;
+            border-radius: 10px;
+            pointer-events: none;
+            white-space: nowrap;
+            border: 1px solid var(--border);
+        }
+        :root[data-theme="dark"] .canvas-hint { background: rgba(22,33,62,0.9); }
+
+        .mermaid svg { background: var(--mermaid-bg) !important; }
+        .canvas-inner svg .node:hover { cursor: pointer; filter: drop-shadow(0 2px 4px rgba(52,152,219,0.3)); }
+        .canvas-inner svg .node.highlighted rect,
+        .canvas-inner svg .node.highlighted polygon,
+        .canvas-inner svg .node.highlighted circle {
+            stroke: var(--accent) !important;
+            stroke-width: 2px !important;
+            filter: drop-shadow(0 0 6px rgba(52,152,219,0.5));
+        }
+        .canvas-inner.dim-mode svg .node { opacity: 0.2 !important; transition: opacity 0.2s; }
+        .canvas-inner.dim-mode svg .edgePath { opacity: 0.08 !important; transition: opacity 0.2s; }
+        .canvas-inner.dim-mode svg .node.highlighted { opacity: 1 !important; }
+        .canvas-inner.dim-mode svg .edgePath.highlighted { opacity: 1 !important; }
+
+        .panel-right {
+            width: 292px;
+            background: var(--surface);
+            border-left: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            box-shadow: -2px 0 4px rgba(0,0,0,0.04);
+        }
+
+        .detail-header {
+            padding: 14px 14px 10px;
+            border-bottom: 1px solid var(--border);
+        }
+        .detail-header h3 {
+            font-size: 14px;
+            color: var(--accent);
+            margin-bottom: 6px;
+            font-weight: 700;
+            letter-spacing: -0.2px;
+        }
+        .detail-header .type-badge {
+            display: inline-block;
+            font-size: 10px;
+            padding: 2px 8px;
+            border-radius: 10px;
+            background: var(--accent-bg);
+            color: var(--accent);
+            font-weight: 600;
+            margin-right: 4px;
+        }
+        .detail-header .pkg {
+            color: var(--text-sec);
+            font-size: 10px;
+            margin-top: 5px;
+            font-family: 'Consolas', monospace;
+            word-break: break-all;
+        }
+        .detail-header .file {
+            color: var(--text-dim);
+            font-size: 9px;
+            margin-top: 3px;
+            font-family: 'Consolas', monospace;
+            word-break: break-all;
+        }
+        .detail-header .domain-badge {
+            display: inline-block;
+            font-size: 10px;
+            padding: 2px 8px;
+            border-radius: 10px;
+            background: var(--success);
+            color: #fff;
+            font-weight: 600;
+            margin-top: 6px;
+        }
+
+        .detail-body { flex: 1; overflow-y: auto; }
+        .detail-body::-webkit-scrollbar { width: 5px; }
+        .detail-body::-webkit-scrollbar-track { background: transparent; }
+        .detail-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+        .section { padding: 10px 14px; border-bottom: 1px solid var(--border); }
+        .section h4 {
+            font-size: 10px;
+            color: var(--text-dim);
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            font-weight: 600;
+        }
+        .section .tag {
+            display: inline-block;
+            font-size: 10px;
+            padding: 2px 7px;
+            margin: 2px 3px 2px 0;
+            border-radius: 4px;
+            background: var(--bg);
+            color: var(--text-sec);
+            border: 1px solid var(--border);
+        }
+        .section .route-item { padding: 6px 0; border-bottom: 1px solid var(--border); }
+        .section .route-item:last-child { border-bottom: none; }
+        .section .route-method { font-weight: 700; font-size: 10px; margin-right: 6px; }
+        .section .route-path { color: var(--accent); font-size: 11px; font-family: 'Consolas', monospace; display: block; }
+        .section .route-desc { color: var(--text-sec); font-size: 10px; margin-top: 2px; }
+        .section .method-item {
+            font-size: 11px;
+            color: var(--text-sec);
+            font-family: 'Consolas', monospace;
+            padding: 2px 0;
+            border-bottom: 1px dashed var(--border);
+        }
+        .section .method-item:last-child { border-bottom: none; }
+
+        .trace-flow { padding: 12px 14px; }
+        .trace-step { display: flex; gap: 10px; margin-bottom: 12px; align-items: flex-start; }
+        .trace-num {
+            width: 22px; height: 22px;
+            background: var(--accent);
+            color: #fff;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+        .trace-step-num-warn { background: var(--warning); }
+        .trace-step-num-err { background: var(--danger); }
+        .trace-body { flex: 1; }
+        .trace-prob { color: var(--danger); font-size: 12px; font-weight: 600; }
+        .trace-check { color: var(--warning); font-size: 11px; margin-top: 2px; }
+        .trace-hint { color: var(--success); font-size: 11px; margin-top: 2px; }
+        .trace-hint span { font-family: 'Consolas', monospace; background: #eafaf1; padding: 0 4px; border-radius: 3px; }
+        :root[data-theme="dark"] .trace-hint span { background: #1a3a2e; }
+
+        .api-test { padding: 12px 14px; }
+        .api-test label {
+            display: block;
+            font-size: 10px;
+            color: var(--text-sec);
+            margin-bottom: 4px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .api-test select,
+        .api-test input,
+        .api-test textarea {
+            width: 100%;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 7px 10px;
+            border-radius: 6px;
+            font-size: 12px;
+            margin-bottom: 8px;
+            font-family: 'Consolas', monospace;
+            transition: border-color 0.2s;
+        }
+        .api-test select:focus,
+        .api-test input:focus,
+        .api-test textarea:focus {
+            outline: none;
+            border-color: var(--accent);
+            background: var(--surface);
+        }
+        .api-test textarea { min-height: 72px; resize: vertical; }
+        .send-btn {
+            background: var(--accent);
+            border: none;
+            color: #fff;
+            padding: 9px;
+            border-radius: 6px;
+            cursor: pointer;
+            width: 100%;
+            font-size: 13px;
+            font-weight: 600;
+            font-family: inherit;
+            transition: background 0.15s;
+            margin-bottom: 8px;
+        }
+        .send-btn:hover { background: var(--accent-h); }
+        .api-test .response {
+            margin-top: 4px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 10px;
+            font-family: 'Consolas', monospace;
+            font-size: 10px;
+            max-height: 180px;
+            overflow: auto;
+            white-space: pre-wrap;
+            word-break: break-all;
+            color: var(--text);
+        }
+
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: var(--text-dim);
+            font-size: 12px;
+            text-align: center;
+            padding: 20px;
+            gap: 10px;
+        }
+        .empty-state .icon { font-size: 32px; opacity: 0.3; line-height: 1; }
+        .empty-state .hint { font-size: 11px; color: var(--text-dim); }
+
+        .toast {
+            position: fixed;
+            bottom: 20px; right: 20px;
+            background: var(--text);
+            color: #fff;
+            padding: 9px 18px;
+            border-radius: 8px;
+            font-size: 12px;
+            z-index: 9999;
+            opacity: 0;
+            transition: opacity 0.3s, transform 0.3s;
+            transform: translateY(10px);
+            pointer-events: none;
+            max-width: 300px;
+        }
+        .toast.show { opacity: 1; transform: translateY(0); }
+        .toast.error { background: var(--danger); }
+        .toast.success { background: var(--success); }
+
+        .project-info {
+            font-size: 11px;
+            color: var(--text-dim);
+            padding: 4px 12px;
+            background: var(--bg);
+            border-bottom: 1px solid var(--border);
+        }
+        .project-info span { margin-right: 12px; }
+
+        .domain-filter {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            padding: 8px 12px;
+            border-bottom: 1px solid var(--border);
+            background: var(--bg);
+        }
+        .domain-filter .filter-tag {
+            font-size: 10px;
+            padding: 2px 8px;
+            border-radius: 10px;
+            cursor: pointer;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            color: var(--text-sec);
+            transition: all 0.15s;
+        }
+        .domain-filter .filter-tag:hover,
+        .domain-filter .filter-tag.active {
+            background: var(--accent-bg);
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <span class="header-title">CodeArch</span>
+    <input type="text" class="search-full" id="searchInput" placeholder="搜索组件 / 路由..." onkeyup="handleSearch(event)">
+    <input type="text" class="base-url-input" id="baseURLInput" value="http://localhost:8080" placeholder="Base URL">
+    <select class="btn" id="envSelect" onchange="updateEnv()">
+        <option value="local">Local</option>
+        <option value="docker">Docker</option>
+        <option value="k8s">K8s</option>
+    </select>
+    <button class="btn" id="themeToggle" onclick="toggleTheme()" title="切换深色/浅色模式">浅色</button>
+    <button class="btn" onclick="updateBaseURL()">更新</button>
+</div>
+
+<div class="main">
+
+    <div class="panel-left">
+        <div class="project-info" id="projectInfo"></div>
+        <div class="domain-filter" id="domainFilter"></div>
+        <div class="tab-bar">
+            <div class="tab active" onclick="switchTab('left', 'components')">组件</div>
+            <div class="tab" onclick="switchTab('left', 'endpoints')">路由</div>
+        </div>
+        <div class="panel-content" id="leftContent">
+            <div id="componentTree"></div>
+            <div id="endpointList" style="display:none;"></div>
+        </div>
+    </div>
+
+    <div class="panel-center">
+        <div class="zoom-bar">
+            <span class="zoom-label">缩放</span>
+            <button class="zoom-btn" onclick="zoomIn()">+</button>
+            <span id="zoomLevel">100%</span>
+            <button class="zoom-btn" onclick="zoomOut()">-</button>
+            <div class="zoom-sep"></div>
+            <button class="zoom-btn" onclick="resetZoom()">重置</button>
+            <button class="zoom-btn" onclick="fitToWindow()">适应</button>
+            <div class="zoom-sep"></div>
+            <button class="zoom-btn" onclick="refreshDiagram()">刷新</button>
+        </div>
+            <div class="tab-bar">
+                <button class="tab-btn active" onclick="switchCanvasTab('layer')">分层视图</button>
+                <button class="tab-btn" onclick="switchCanvasTab('flow')">流程视图</button>
+            </div>
+            <div class="canvas-wrap" id="canvasWrap">
+                <div class="canvas-inner" id="canvasInner">
+                    <div class="mermaid" id="mermaidContainer">
+%% initMermaid() will inject buildLayerViewCode() here
+                    </div>
+                    <div class="mermaid" id="mermaidFlowContainer" style="display:none">
+%% switchCanvasTab('flow') will inject buildFlowViewCode() here
+                    </div>
+            </div>
+            <div class="canvas-hint">拖拽平移 · 滚轮缩放 · 点击节点高亮相关组件</div>
+        </div>
+    </div>
+
+    <div class="panel-right">
+        <div class="tab-bar">
+            <div class="tab active" onclick="switchTab('right', 'detail')">详情</div>
+            <div class="tab" onclick="switchTab('right', 'trace')">Trace</div>
+            <div class="tab" onclick="switchTab('right', 'apitest')">API</div>
+        </div>
+        <div class="panel-content detail-body" id="rightContent">
+            <div id="detailPanel">
+                <div class="empty-state">
+                    <div class="icon">&#9675;</div>
+                    <div>点击左侧组件查看详情</div>
+                    <div class="hint">或直接点击架构图中的节点</div>
+                    <button class="btn" style="margin-top:6px;" onclick="copyForAI()">Copy for AI</button>
+                </div>
+            </div>
+            <div id="tracePanel" style="display:none;"></div>
+            <div id="apiTestPanel" style="display:none;" class="api-test">
+                <label>Method</label>
+                <select id="apiMethod">
+                    <option>GET</option><option>POST</option><option>PUT</option><option>DELETE</option><option>PATCH</option>
+                </select>
+                <label>Path</label>
+                <input type="text" id="apiPath" placeholder="/api/...">
+                <label>Body (JSON)</label>
+                <textarea id="apiBody" placeholder='{"key": "value"}'></textarea>
+                <button class="send-btn" onclick="sendApiRequest()">发送请求</button>
+                <div id="apiResponse"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+
+// ╔════════════════════════════════════════════════════════════════════╗
+// ║  systemData placeholder — run CodeArch skill to generate the real   ║
+// ║  system-data.json, then architecture.html will be rebuilt from it.   ║
+// ╚════════════════════════════════════════════════════════════════════╝
+const systemData = {
+  "meta": {
+    "projectType": "java-spring",
+    "projectName": "your-project",
+    "generatedAt": "2026-06-08T10:50:46.219Z",
+    "sourceRoots": ["backend/src/main/java", "frontend/src"],
+    "scope": "full-project",
+    "moduleName": null,
+    "languagePack": "java-spring.yaml",
+    "outputFormat": "html",
+    "nodeCount": 0
+  },
+  "components": [],
+  "routes": [],
+  "dependencies": [],
+  "externalServices": [
+    {"name": "MySQL", "type": "database"},
+    {"name": "Redis", "type": "cache"},
+    {"name": "MongoDB", "type": "database"},
+    {"name": "Neo4j", "type": "graph"},
+    {"name": "Qdrant", "type": "vector"}
+  ],
+  "domains": [],
+  "warnings": ["systemData placeholder — run CodeArch skill to generate real data"]
+};
+
+
+// Closing mermaidFlowContainer and canvas wrappers
+                </div>
+            </div>
+        </div>
+
+// State
+let currentLeftTab = 'components';
+let currentRightTab = 'detail';
+let selectedNode = null;
+let baseURL = 'http://localhost:8080';
+let currentEnv = 'local';
+let activeDomain = null;
+let curZoom = 1;
+let zoomStep = 0.1;
+const minZoom = 0.1;
+const maxZoom = 5;
+let panX = 0;
+let panY = 0;
+let isDrag = false;
+let dragStartX = 0;
+let dragStartY = 0;
+let dragPanX = 0;
+let dragPanY = 0;
+let currentTheme = 'light';
+
+// Env configurations
+const envConfigs = {
+    local: { url: 'http://localhost:8080', prefix: '' },
+    docker: { url: 'http://localhost:8080', prefix: '' },
+    k8s: { url: 'http://localhost:30080', prefix: '' }
+};
+
+// Initialize
+function init() {
+    renderProjectInfo();
+    renderDomainFilter();
+    renderTree();
+    renderEndpoints();
+    initTheme();
+    initMermaid();
+}
+
+function renderProjectInfo() {
+    const el = document.getElementById('projectInfo');
+    if (!el || !systemData.meta) return;
+    const { projectType, projectName } = systemData.meta;
+    el.innerHTML = `<span>${projectType || 'Unknown'}</span><span>${projectName || 'Project'}</span>`;
+}
+
+function renderDomainFilter() {
+    const el = document.getElementById('domainFilter');
+    if (!el) return;
+    
+    const domains = [...new Set(systemData.components?.map(c => c.domain).filter(Boolean) || [])];
+    if (domains.length === 0) {
+        el.style.display = 'none';
+        return;
+    }
+    
+    let html = `<span class="filter-tag active" onclick="filterByDomain(null)">全部</span>`;
+    domains.forEach(d => {
+        html += `<span class="filter-tag" onclick="filterByDomain('${d}')">${d}</span>`;
+    });
+    el.innerHTML = html;
+}
+
+function filterByDomain(domain) {
+    activeDomain = domain;
+    document.querySelectorAll('.domain-filter .filter-tag').forEach(t => {
+        t.classList.toggle('active', t.textContent === (domain || '全部'));
+    });
+    renderTree();
+    highlightRelatedNodes(selectedNode);
+}
+
+function getFilteredComponents() {
+    if (!activeDomain) return systemData.components || [];
+    return (systemData.components || []).filter(c => c.domain === activeDomain);
+}
+
+// Theme
+function initTheme() {
+    try {
+        const saved = localStorage.getItem('codearch-theme');
+        if (saved === 'light' || saved === 'dark') {
+            currentTheme = saved;
+            applyTheme();
+        }
+    } catch(e) {}
+}
+
+function toggleTheme() {
+    currentTheme = currentTheme === 'light' ? 'dark' : 'light';
+    applyTheme();
+}
+
+function applyTheme() {
+    document.documentElement.setAttribute('data-theme', currentTheme);
+    const btn = document.getElementById('themeToggle');
+    if (btn) btn.textContent = currentTheme === 'light' ? '浅色' : '深色';
+    try { localStorage.setItem('codearch-theme', currentTheme); } catch(e) {}
+    
+    const svg = document.querySelector('#mermaidContainer svg');
+    if (svg) {
+        const code = document.querySelector('#mermaidContainer code');
+        if (code) {
+            const mermaidCode = code.textContent || code.innerText || '';
+            svg.remove();
+            const pre = document.createElement('code');
+            pre.className = 'mermaid';
+            pre.textContent = mermaidCode;
+            document.getElementById('mermaidContainer').appendChild(pre);
+            mermaid.initialize({ startOnLoad: false, theme: 'base', themeVariables: getMermaidThemeVars() });
+            mermaid.run({ querySelector: '#mermaidContainer .mermaid' });
+            setTimeout(() => { initCanvas(); initHighlight(); }, 600);
+        }
+    }
+}
+
+function getMermaidThemeVars() {
+    if (currentTheme === 'dark') {
+        return {
+            primaryColor: '#1a3a5c',
+            primaryTextColor: '#e0e0e0',
+            primaryBorderColor: '#3498db',
+            lineColor: '#4a5568',
+            secondaryColor: '#1e2a45',
+            tertiaryColor: '#16213e',
+            background: '#1a1a2e',
+            mainBkg: '#16213e',
+            nodeBorder: '#0f3460',
+            clusterBkg: '#1e2a45',
+            clusterBorder: '#0f3460',
+            titleColor: '#e0e0e0',
+            edgeLabelBackground: '#16213e'
+        };
+    }
+    return {
+        primaryColor: '#eaf4fb',
+        primaryTextColor: '#2c3e50',
+        primaryBorderColor: '#3498db',
+        lineColor: '#bdc3c7',
+        secondaryColor: '#f0f4f8',
+        tertiaryColor: '#ffffff',
+        background: '#f0f4f8',
+        mainBkg: '#ffffff',
+        nodeBorder: '#dde3ec',
+        clusterBkg: '#f8fafc',
+        clusterBorder: '#dde3ec',
+        titleColor: '#2c3e50',
+        edgeLabelBackground: '#ffffff'
+    };
+}
+
+// Zoom + Pan
+function updateTransform() {
+    const inner = document.getElementById('canvasInner');
+    if (!inner) return;
+    inner.style.transform = `translate(${panX}px,${panY}px) scale(${curZoom})`;
+    const lv = document.getElementById('zoomLevel');
+    if (lv) lv.textContent = Math.round(curZoom * 100) + '%';
+}
+
+function initCanvas() {
+    const wrap = document.getElementById('canvasWrap');
+    if (!wrap) return;
+    
+    wrap.onmousedown = (e) => {
+        if (e.button !== 0) return;
+        isDrag = true;
+        dragStartX = e.clientX;
+        dragStartY = e.clientY;
+        dragPanX = panX;
+        dragPanY = panY;
+        wrap.style.cursor = 'grabbing';
+        e.preventDefault();
+    };
+    
+    document.onmousemove = (e) => {
+        if (!isDrag) return;
+        panX = dragPanX + (e.clientX - dragStartX);
+        panY = dragPanY + (e.clientY - dragStartY);
+        updateTransform();
+    };
+    
+    document.onmouseup = () => {
+        if (isDrag) {
+            isDrag = false;
+            const w = document.getElementById('canvasWrap');
+            if (w) w.style.cursor = 'grab';
+        }
+    };
+    
+    wrap.onwheel = (e) => {
+        e.preventDefault();
+        const rect = wrap.getBoundingClientRect();
+        const mx = e.clientX - rect.left - rect.width / 2;
+        const my = e.clientY - rect.top - rect.height / 2;
+        const newZ = e.deltaY < 0 ? Math.min(maxZoom, curZoom + zoomStep) : Math.max(minZoom, curZoom - zoomStep);
+        const cx = (mx - panX) / curZoom;
+        const cy = (my - panY) / curZoom;
+        panX = mx - cx * newZ;
+        panY = my - cy * newZ;
+        curZoom = newZ;
+        updateTransform();
+    };
+    updateTransform();
+}
+
+function zoomIn() {
+    const wrap = document.getElementById('canvasWrap');
+    if (!wrap) return;
+    const mx = wrap.clientWidth / 2, my = wrap.clientHeight / 2;
+    const newZ = Math.min(maxZoom, curZoom + zoomStep);
+    const cx = (mx - panX) / curZoom, cy = (my - panY) / curZoom;
+    panX = mx - cx * newZ; panY = my - cy * newZ;
+    curZoom = newZ; updateTransform();
+}
+
+function zoomOut() {
+    const wrap = document.getElementById('canvasWrap');
+    if (!wrap) return;
+    const mx = wrap.clientWidth / 2, my = wrap.clientHeight / 2;
+    const newZ = Math.max(minZoom, curZoom - zoomStep);
+    const cx = (mx - panX) / curZoom, cy = (my - panY) / curZoom;
+    panX = mx - cx * newZ; panY = my - cy * newZ;
+    curZoom = newZ; updateTransform();
+}
+
+function resetZoom() { curZoom = 1; panX = 0; panY = 0; updateTransform(); }
+
+function fitToWindow() {
+    const wrap = document.getElementById('canvasWrap');
+    const svg = document.querySelector('#mermaidContainer svg');
+    if (!wrap || !svg) return;
+    const r = svg.getBoundingClientRect();
+    const wW = wrap.clientWidth - 24, wH = wrap.clientHeight - 24;
+    if (r.width <= 0 || r.height <= 0) return;
+    curZoom = Math.max(minZoom, Math.min(maxZoom, Math.min(wW / r.width, wH / r.height)));
+    panX = 0; panY = 0; updateTransform();
+}
+
+function refreshDiagram() {
+    location.reload();
+}
+
+function switchCanvasTab(tab) {
+    document.querySelectorAll('.tab-bar .tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-bar .tab-btn').forEach(b => {
+        if (b.textContent.includes(tab === 'layer' ? '分层视图' : '流程视图')) b.classList.add('active');
+    });
+    const layer = document.getElementById('mermaidContainer');
+    const flow = document.getElementById('mermaidFlowContainer');
+    if (layer && flow) {
+        if (tab === 'layer') {
+            layer.style.display = '';
+            flow.style.display = 'none';
+        } else {
+            layer.style.display = 'none';
+            flow.style.display = '';
+            // Inject flow view code before rendering
+            flow.textContent = buildFlowViewCode();
+            mermaid.run({ querySelector: '#mermaidFlowContainer' });
+            setTimeout(() => { initCanvas(); initHighlight(); }, 600);
+        }
+    }
+}
+
+// Dynamic relationship mapping
+function getRelatedComponents(label, nodeId) {
+    const result = new Set();
+    const comps = systemData.components || [];
+    const domain = getDomainFromLabel(label);
+    
+    // 1. Find the component
+    const comp = comps.find(c => c.id === label || c.id === domain);
+    
+    // 2. Direct dependencies (injects)
+    if (comp && comp.injects) {
+        comp.injects.forEach(inj => {
+            const target = comps.find(c => c.id === inj);
+            if (target) result.add(target.id);
+        });
+    }
+    
+    // 3. Components that depend on this one
+    comps.forEach(c => {
+        if (c.injects && c.injects.includes(comp?.id || label)) {
+            result.add(c.id);
+        }
+    });
+    
+    // 4. Same domain
+    if (domain) {
+        comps.forEach(c => {
+            if (c.domain === domain && c.id !== label) {
+                result.add(c.id);
+            }
+        });
+    }
+    
+    // 5. External services related to this component
+    const extServices = systemData.externalServices || [];
+    extServices.forEach(ext => {
+        // Simple heuristic: check if component uses similar tech
+        if (comp) {
+            const techIndicators = {
+                'MySQL': ['mysql', 'jpa', 'repository', 'sql'],
+                'MongoDB': ['mongo', 'document'],
+                'Redis': ['redis', 'cache'],
+                'Neo4j': ['neo4j', 'graph', 'bolt', 'cypher'],
+                'Qdrant': ['vector', 'qdrant', 'embedding', 'rag']
+            };
+            for (const [svc, indicators] of Object.entries(techIndicators)) {
+                if (ext.name === svc && indicators.some(ind => 
+                    (comp.id + comp.package + comp.file).toLowerCase().includes(ind))) {
+                    result.add(svc);
+                }
+            }
+        }
+    });
+    
+    return Array.from(result);
+}
+
+function getDomainFromLabel(label) {
+    const domains = {
+        'product': ['product', '商品', 'prod'],
+        'order': ['order', '订单'],
+        'user': ['user', 'consumer', '用户', 'customer'],
+        'cart': ['cart', '购物车'],
+        'ai': ['ai', 'knowledge', 'graph', 'rag', 'llm', '智能'],
+        'payment': ['payment', 'pay', '支付', 'transaction']
+    };
+    
+    const lower = label.toLowerCase();
+    for (const [domain, keywords] of Object.entries(domains)) {
+        if (keywords.some(k => lower.includes(k))) return domain;
+    }
+    return null;
+}
+
+// Highlight
+function initHighlight() {
+    let retry = 0;
+    const timer = setInterval(() => {
+        const svg = document.querySelector('#mermaidContainer svg');
+        if (!svg) { retry++; if (retry > 40) clearInterval(timer); return; }
+        clearInterval(timer);
+        
+        svg.querySelectorAll('.node').forEach(n => {
+            n.style.cursor = 'pointer';
+            n.onclick = (e) => {
+                e.stopPropagation();
+                const labelEl = n.querySelector('.nodeLabel') || n.querySelector('text');
+                if (labelEl) {
+                    const text = labelEl.textContent.replace(/<[^>]*>/g, '').replace(/\s*\n.*/s, '').trim();
+                    onNodeClick(text, n);
+                }
+            };
+        });
+        
+        svg.onclick = () => clearHl();
+        fitToWindow();
+    }, 100);
+}
+
+function onNodeClick(label, nodeEl) {
+    const relatedIds = getRelatedComponents(label, nodeEl.id || '');
+    const svg = document.querySelector('#mermaidContainer svg');
+    if (!svg) return;
+    
+    const allNodes = svg.querySelectorAll('.node');
+    
+    // Find matching nodes
+    const targetNodes = [];
+    allNodes.forEach(n => {
+        const nid = normalizeNodeId(n.id || '');
+        const nlabel = (n.querySelector('.nodeLabel') || n).textContent || '';
+        if (relatedIds.some(id => normalizeNodeId(id) === nid || nlabel.includes(id))) {
+            targetNodes.push(n);
+        }
+    });
+    
+    // Fallback: fuzzy match
+    if (targetNodes.length === 0) {
+        allNodes.forEach(n => {
+            const txt = (n.querySelector('.nodeLabel') || n).textContent || '';
+            if (txt.indexOf(label) >= 0) targetNodes.push(n);
+        });
+    }
+    
+    // Apply highlighting
+    svg.querySelectorAll('.highlighted, .dim').forEach(el => el.classList.remove('highlighted', 'dim'));
+    svg.querySelectorAll('.dim-edge').forEach(el => { el.style.opacity = ''; el.classList.remove('dim-edge'); });
+    
+    const inner = document.getElementById('canvasInner');
+    if (inner) inner.classList.add('dim-mode');
+    
+    allNodes.forEach(n => n.classList.add('dim'));
+    svg.querySelectorAll('.edgePath').forEach(e => { e.style.opacity = '0.08'; e.classList.add('dim-edge'); });
+    
+    targetNodes.forEach(n => {
+        n.classList.remove('dim');
+        n.classList.add('highlighted');
+        
+        // Highlight connected edges
+        const nid = n.id || '';
+        svg.querySelectorAll('.edgePath').forEach(e => {
+            const eid = e.id || '';
+            if (eid.indexOf(nid) >= 0 || nid.indexOf(eid.split('--')[0].replace(/:.*$/, '')) >= 0) {
+                e.classList.remove('dim-edge');
+                e.style.opacity = '1';
+                e.classList.add('highlighted');
+            }
+        });
+    });
+}
+
+function normalizeNodeId(id) {
+    return id.replace(/-\d+$/, '').replace(/_[\w]+$/, '');
+}
+
+function clearHl() {
+    const svg = document.querySelector('#mermaidContainer svg');
+    const inner = document.getElementById('canvasInner');
+    if (svg) {
+        svg.querySelectorAll('.highlighted, .dim').forEach(el => el.classList.remove('highlighted', 'dim'));
+        svg.querySelectorAll('.dim-edge').forEach(el => { el.style.opacity = ''; el.classList.remove('dim-edge'); });
+    }
+    if (inner) inner.classList.remove('dim-mode');
+}
+
+function highlightRelatedNodes(nodeId) {
+    if (nodeId) {
+        const svg = document.querySelector('#mermaidContainer svg');
+        if (svg) {
+            const nodes = svg.querySelectorAll('.node');
+            nodes.forEach(n => {
+                const txt = (n.querySelector('.nodeLabel') || n).textContent || '';
+                if (txt.includes(nodeId)) {
+                    onNodeClick(nodeId, n);
+                }
+            });
+        }
+    }
+}
+
+// Component Tree
+function renderTree() {
+    const c = document.getElementById('componentTree');
+    if (!c) return;
+    
+    const comps = getFilteredComponents();
+    const layers = {};
+    
+    comps.forEach(comp => {
+        const l = comp.layer || 'other';
+        if (!layers[l]) layers[l] = [];
+        layers[l].push(comp);
+    });
+    
+    const order = ['入口层', '业务层', 'MongoService层', '知识图谱层', '数据访问层', '数据模型', '配置', '数据传输', '外部服务', 'other'];
+    let html = '';
+    
+    order.forEach(l => {
+        if (!layers[l]) return;
+        html += `<div class="layer-group"><div class="layer-title">${l}</div>`;
+        layers[l].forEach(comp => {
+            const color = getColor(comp.type);
+            const badge = comp.routes && comp.routes.length > 0 
+                ? ` <span class="badge">${comp.routes.length}</span>` : '';
+            const domainTag = comp.domain ? `<span class="badge" style="background:${getDomainColor(comp.domain)}">${comp.domain}</span>` : '';
+            html += `<div class="tree-node" onclick="showDetail('${comp.id}')" data-id="${comp.id}">
+                <span class="dot" style="background:${color}"></span>
+                <span class="label">${comp.id}</span>${badge}${domainTag}
+            </div>`;
+        });
+        html += '</div>';
+    });
+    
+    c.innerHTML = html || '<div class="empty-state"><div class="icon">&#9632;</div><div>暂无组件数据</div></div>';
+}
+
+function getDomainColor(domain) {
+    const colors = {
+        'product': '#3498db',
+        'order': '#27ae60',
+        'user': '#9b59b6',
+        'cart': '#f39c12',
+        'ai': '#e74c3c',
+        'payment': '#e67e22'
+    };
+    return colors[domain] || '#7f8c8d';
+}
+
+function getColor(type) {
+    const m = {
+        Controller: '#3498db',
+        Service: '#27ae60',
+        MongoService: '#16a085',
+        Repository: '#f39c12',
+        Entity: '#9b59b6',
+        KnowledgeGraph: '#e74c3c',
+        RAG: '#e67e22',
+        AI: '#e74c3c',
+        Component: '#1abc9c',
+        MongoDoc: '#9b59b6',
+        Config: '#7f8c8d',
+        DTO: '#95a5a6',
+        Router: '#3498db',
+        Blueprint: '#3498db',
+        Middleware: '#f39c12',
+        Model: '#9b59b6',
+        Schema: '#95a5a6',
+        Utility: '#7f8c8d'
+    };
+    return m[type] || '#bdc3c7';
+}
+
+// Endpoints
+function renderEndpoints() {
+    const c = document.getElementById('endpointList');
+    if (!c) return;
+    
+    const routes = systemData.routes || [];
+    if (routes.length === 0) {
+        c.innerHTML = '<div class="empty-state"><div class="icon">&#9632;</div><div>暂无路由数据</div></div>';
+        return;
+    }
+    
+    const colors = {GET: '#27ae60', POST: '#3498db', PUT: '#f39c12', DELETE: '#e74c3c', PATCH: '#9b59b6'};
+    let html = '';
+    
+    routes.forEach(r => {
+        const mc = colors[r.method] || '#888';
+        html += `<div class="endpoint-item" onclick="selEndpoint('${r.path.replace(/'/g, "\\'")}', '${r.method}')" data-path="${r.path}">
+            <span class="method" style="color:${mc}">${r.method}</span>
+            <span class="path">${r.path}</span>
+            ${r.desc ? `<div class="meta">${r.desc}</div>` : ''}
+        </div>`;
+    });
+    c.innerHTML = html;
+}
+
+// Detail Panel
+function showDetail(nodeId) {
+    document.querySelectorAll('.tree-node').forEach(n => n.classList.remove('selected'));
+    const sel = document.querySelector(`.tree-node[data-id="${nodeId}"]`);
+    if (sel) sel.classList.add('selected');
+    selectedNode = nodeId;
+    
+    const comp = (systemData.components || []).find(c => c.id === nodeId);
+    if (!comp) return;
+    
+    const color = getColor(comp.type);
+    const mc = {GET: '#27ae60', POST: '#3498db', PUT: '#f39c12', DELETE: '#e74c3c', PATCH: '#9b59b6'};
+    
+    let html = `<div class="detail-header">
+        <h3>${comp.id}</h3>
+        <span class="type-badge" style="background:${color};color:#fff;">${comp.type}</span>
+        <span class="type-badge">${comp.layer}</span>
+        ${comp.domain ? `<span class="domain-badge">${comp.domain}</span>` : ''}
+        <div class="pkg">${comp.package || ''}</div>
+        <div class="file">${comp.file || ''}</div>
+    </div>`;
+    
+    if (comp.routes && comp.routes.length > 0) {
+        html += '<div class="section"><h4>Routes</h4>';
+        comp.routes.forEach(r => {
+            const mcc = mc[r.method] || '#888';
+            html += `<div class="route-item">
+                <span class="route-method" style="color:${mcc}">${r.method}</span>
+                <span class="route-path">${r.path}</span>
+                ${r.desc ? `<div class="route-desc">${r.desc}</div>` : ''}
+            </div>`;
+        });
+        html += '</div>';
+    }
+    
+    if (comp.injects && comp.injects.length > 0) {
+        html += '<div class="section"><h4>Dependencies</h4>';
+        comp.injects.forEach(i => { html += `<span class="tag">${i}</span>`; });
+        html += '</div>';
+    }
+    
+    if (comp.methods && comp.methods.length > 0) {
+        html += '<div class="section"><h4>Methods</h4>';
+        comp.methods.slice(0, 10).forEach(m => { html += `<div class="method-item">${m}</div>`; });
+        html += '</div>';
+    }
+    
+    if (comp.dataFlow) {
+        html += `<div class="section"><h4>Data Flow</h4><div style="font-size:11px;color:var(--text-sec);line-height:1.6;">${comp.dataFlow}</div></div>`;
+    }
+    
+    document.getElementById('detailPanel').innerHTML = html;
+    switchTab('right', 'detail');
+    renderTrace(nodeId, comp);
+    highlightRelatedNodes(nodeId);
+}
+
+// Trace
+function renderTrace(nodeId, comp) {
+    const c = document.getElementById('tracePanel');
+    if (!c) return;
+    
+    const steps = [
+        {n: 1, prob: 'HTTP 请求入口', check: '检查 Controller 参数校验与认证', hint: nodeId, cls: ''},
+        {n: 2, prob: 'Service 层调用', check: '检查 Service 是否注入、是否存在', hint: '', cls: ''}
+    ];
+    let stepNum = 3;
+    
+    if (comp && comp.injects) {
+        const hasKG = comp.injects.some(i => /Knowledge|Graph|Neo4j/i.test(i));
+        const hasRAG = comp.injects.some(i => /Vector|RAG|Qdrant|Embedding/i.test(i));
+        const hasMongo = comp.injects.some(i => /Mongo/i.test(i));
+        const hasRedis = comp.injects.some(i => /Redis|Cache/i.test(i));
+        
+        if (hasKG) steps.push({n: stepNum++, prob: 'Neo4j 图数据库查询', check: '检查 bolt:// 连接、Cypher 语法', hint: 'spring.neo4j.uri', cls: ''});
+        if (hasRAG) steps.push({n: stepNum++, prob: 'Qdrant 向量检索', check: '检查 Qdrant 服务、Collection', hint: 'ai.rag.vector-store.host', cls: ''});
+        if (hasMongo) steps.push({n: stepNum++, prob: 'MongoDB 文档操作', check: '检查 MongoDB 连接字符串', hint: 'spring.data.mongodb', cls: ''});
+        if (hasRedis) steps.push({n: stepNum++, prob: 'Redis 缓存读写', check: '检查 Redis 连接池、TTL', hint: 'spring.data.redis', cls: ''});
+    }
+    
+    if (comp && comp.type === 'Repository') {
+        steps.push({n: stepNum, prob: 'MySQL 数据库查询', check: '检查 MySQL 连接池、SQL 语法', hint: 'spring.datasource.url', cls: 'trace-step-num-warn'});
+    }
+    if (comp && comp.type === 'AI') {
+        steps.push({n: stepNum, prob: 'LLM API 调用', check: '检查 API Key、环境变量', hint: 'AI_PROVIDER_API_KEY', cls: 'trace-step-num-err'});
+    }
+    
+    let html = '<div class="trace-flow">';
+    steps.forEach(s => {
+        html += `<div class="trace-step">
+            <div class="trace-num ${s.cls}">${s.n}</div>
+            <div class="trace-body">
+                <div class="trace-prob">${s.prob}</div>
+                <div class="trace-check">${s.check}</div>
+                ${s.hint ? `<div class="trace-hint">配置: <span>${s.hint}</span></div>` : ''}
+            </div>
+        </div>`;
+    });
+    html += '</div>';
+    c.innerHTML = html;
+}
+
+// Tab switching
+function switchTab(panel, tab) {
+    if (panel === 'left') {
+        const ct = document.getElementById('componentTree');
+        const ep = document.getElementById('endpointList');
+        if (ct) ct.style.display = tab === 'components' ? 'block' : 'none';
+        if (ep) ep.style.display = tab === 'endpoints' ? 'block' : 'none';
+        document.querySelectorAll('.panel-left .tab').forEach(t => t.classList.remove('active'));
+        const t1 = document.querySelector('.panel-left .tab:nth-child(1)');
+        const t2 = document.querySelector('.panel-left .tab:nth-child(2)');
+        if (tab === 'components' && t1) t1.classList.add('active');
+        if (tab === 'endpoints' && t2) t2.classList.add('active');
+        currentLeftTab = tab;
+    } else {
+        const dp = document.getElementById('detailPanel');
+        const tp = document.getElementById('tracePanel');
+        const ap = document.getElementById('apiTestPanel');
+        if (dp) dp.style.display = tab === 'detail' ? 'block' : 'none';
+        if (tp) tp.style.display = tab === 'trace' ? 'block' : 'none';
+        if (ap) ap.style.display = tab === 'apitest' ? 'block' : 'none';
+        document.querySelectorAll('.panel-right .tab').forEach(t => t.classList.remove('active'));
+        const idx = {detail: 1, trace: 2, apitest: 3};
+        const tEl = document.querySelector(`.panel-right .tab:nth-child(${idx[tab] || 1})`);
+        if (tEl) tEl.classList.add('active');
+        currentRightTab = tab;
+    }
+}
+
+// Search
+function handleSearch(e) {
+    const q = e.target.value.toLowerCase();
+    if (currentLeftTab === 'components') {
+        document.querySelectorAll('.tree-node').forEach(n => {
+            n.style.display = n.textContent.toLowerCase().indexOf(q) >= 0 ? 'flex' : 'none';
+        });
+    } else {
+        document.querySelectorAll('.endpoint-item').forEach(n => {
+            n.style.display = n.textContent.toLowerCase().indexOf(q) >= 0 ? 'block' : 'none';
+        });
+    }
+}
+
+// Endpoint selection -> API test
+function selEndpoint(path, method) {
+    document.querySelectorAll('.endpoint-item').forEach(e => e.classList.remove('selected'));
+    const el = document.querySelector(`.endpoint-item[data-path="${path.replace(/"/g, '\\"')}"]`);
+    if (el) el.classList.add('selected');
+    const pathInput = document.getElementById('apiPath');
+    const methodSelect = document.getElementById('apiMethod');
+    if (pathInput) pathInput.value = path;
+    if (methodSelect) methodSelect.value = method;
+    switchTab('right', 'apitest');
+}
+
+// API Test
+function updateBaseURL() {
+    baseURL = document.getElementById('baseURLInput').value.trim();
+    if (baseURL.indexOf('http') !== 0) baseURL = 'http://' + baseURL;
+    toast('Base URL: ' + baseURL);
+}
+
+function updateEnv() {
+    currentEnv = document.getElementById('envSelect').value;
+    const config = envConfigs[currentEnv] || envConfigs.local;
+    const urlInput = document.getElementById('baseURLInput');
+    if (urlInput) urlInput.value = config.url;
+    baseURL = config.url;
+    toast('Env: ' + currentEnv);
+}
+
+async function sendApiRequest() {
+    const method = document.getElementById('apiMethod').value;
+    const path = document.getElementById('apiPath').value;
+    const body = document.getElementById('apiBody').value;
+    const container = document.getElementById('apiResponse');
+    if (!container) return;
+    
+    container.textContent = '发送中...';
+    try {
+        const opts = { method, headers: {'Content-Type': 'application/json'} };
+        if (body && method !== 'GET') opts.body = body;
+        
+        const res = await fetch(baseURL + path, opts);
+        const text = await res.text();
+        let data;
+        try { data = JSON.parse(text); data = JSON.stringify(data, null, 2); } catch(e) { data = text; }
+        
+        container.innerHTML = `<span style="color:${res.ok ? 'var(--success)' : 'var(--danger)'}">${res.status} ${res.statusText}</span>\n\n${escapeHtml(data)}`;
+    } catch (e) {
+        let hint = '';
+        if (e.message.indexOf('Failed to fetch') >= 0 || e.message.indexOf('NetworkError') >= 0) {
+            hint = '<div style="margin-top:8px;font-size:11px;color:var(--warning);">CORS 限制：浏览器阻止跨域请求。<br>解决：配置后端 CORS 或使用代理。</div>';
+        }
+        container.innerHTML = `<span style="color:var(--danger)">Error: ${escapeHtml(e.message)}</span>${hint}`;
+    }
+}
+
+function escapeHtml(str) {
+    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+// Copy for AI
+function copyForAI() {
+    if (!selectedNode) { toast('请先选择一个组件', true); return; }
+    const comp = (systemData.components || []).find(c => c.id === selectedNode);
+    if (!comp) return;
+    
+    let md = `## ${comp.id}\n\n**Type:** ${comp.type} | **Layer:** ${comp.layer}\n`;
+    if (comp.domain) md += `**Domain:** ${comp.domain}\n`;
+    md += `**Package:** \`${comp.package || ''}\`\n\n`;
+    
+    if (comp.routes && comp.routes.length) {
+        md += '### Routes\n' + comp.routes.map(r => `- \`${r.method} ${r.path}\` ${r.desc || ''}`).join('\n') + '\n\n';
+    }
+    if (comp.injects && comp.injects.length) {
+        md += '### Dependencies\n' + comp.injects.map(i => `- \`${i}\``).join('\n') + '\n\n';
+    }
+    if (comp.methods && comp.methods.length) {
+        md += '### Methods\n' + comp.methods.slice(0, 5).map(m => `- \`${m}\``).join('\n');
+    }
+    
+    navigator.clipboard.writeText(md).then(() => toast('已复制到剪贴板', false, 'success')).catch(() => toast('复制失败', true));
+}
+
+// Toast
+function toast(msg, isErr, type) {
+    const t = document.getElementById('toast');
+    if (!t) return;
+    t.textContent = msg;
+    t.className = 'toast' + (isErr ? ' error' : '') + (type === 'success' ? ' success' : '');
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// Mermaid init
+function buildMermaidCode() {
+    const comps = systemData.components || [];
+    const deps = systemData.dependencies || [];
+    const extSvcs = systemData.externalServices || [];
+
+    const byLayer = { entry: [], service: [], data: [], infra: [], frontend: [] };
+    comps.forEach(c => { const l = c.layer || 'service'; (byLayer[l] = byLayer[l] || []).push(c); });
+
+    const sid = c => String(c.id || c).replace(/[^a-zA-Z0-9_]/g, '_');
+    const label = c => {
+        const r = c.routes && c.routes[0];
+        const suffix = r ? '\\n' + r.path.split('{')[0] : '';
+        return `${c.name}${suffix}`;
+    };
+
+    const layerMap = {
+        entry: { title: '🔵 Entry Layer (HTTP)', color: '#1a5276', bg: '#d6eaf8', stroke: '#2e86c1' },
+        service: { title: '🟣 Service Layer', color: '#1e8449', bg: '#d5f5e3', stroke: '#27ae60' },
+        data: { title: '🟡 Data Access Layer', color: '#9a7d0a', bg: '#fef9e7', stroke: '#f39c12' },
+        infra: { title: '⚪ Infrastructure', color: '#6e2f1a', bg: '#fdebd0', stroke: '#e67e22' },
+        frontend: { title: '🟣 Frontend', color: '#4a235a', bg: '#f5eef8', stroke: '#8e44ad' }
+    };
+
+    let code = 'flowchart TB\n';
+
+    Object.entries(byLayer).forEach(([layerName, layerItems]) => {
+        if (!layerItems.length) return;
+        const cfg = layerMap[layerName] || layerMap.service;
+        const safeId = layerName === 'frontend' ? 'FRONTEND' : layerName.toUpperCase();
+        code += `    subgraph ${safeId}["${cfg.title}"]\n`;
+        layerItems.forEach(c => { code += `        ${sid(c)}["${label(c)}"]\n`; });
+        code += `    end\n`;
+    });
+
+    const extIds = {};
+    extSvcs.forEach(s => { const eid = 'EXT_' + s.name.replace(/[^a-zA-Z0-9]/g, '_'); extIds[s.name] = eid; });
+    code += `    subgraph EXTERNAL["⚪ External Services"]\n`;
+    extSvcs.forEach(s => { code += `        ${extIds[s.name]}["${s.name}\\n<small>${s.type}</small>"]\n`; });
+    code += `    end\n`;
+
+    const depMap = {};
+    (systemData.components || []).forEach(c => { depMap[c.id] = c; });
+
+    deps.forEach(d => {
+        const fe = depMap[d.from] || extIds[d.from];
+        const te = depMap[d.to] || extIds[d.to];
+        if (!fe || !te) return;
+        const arrow = d.type === 'uses' || d.type === 'stores' ? '-.->' : '-->';
+        code += `    ${sid({id: d.from})} ${arrow} ${sid({id: d.to})}\n`;
+    });
+
+    Object.entries(layerMap).forEach(([layerName, layerCfg]) => {
+        const safeId = layerName === 'frontend' ? 'FRONTEND' : layerName.toUpperCase();
+        code += `    classDef ${safeId} color:${layerCfg.color},fill:${layerCfg.bg},stroke:${layerCfg.stroke},stroke-width:2px\n`;
+        (byLayer[layerName] || []).forEach(c => { code += `    class ${sid(c)} ${safeId}\n`; });
+    });
+    extSvcs.forEach(s => { code += `    class ${extIds[s.name]} EXTERNAL\n`; });
+    code += `    classDef EXTERNAL color:#6e2f1a,fill:#fdebd0,stroke:#e67e22,stroke-width:2px\n`;
+
+    return code;
+}
+
+function buildFlowViewCode() {
+    const comps = systemData.components || [];
+    const extSvcs = systemData.externalServices || [];
+    const depMap = {};
+    comps.forEach(c => { depMap[c.id] = c; });
+    const sid = id => id.replace(/[^a-zA-Z0-9_]/g, '_');
+    let code = 'flowchart LR\n';
+    code += `    subgraph FRONTEND["🟣 前端 Vue 3 SPA"]\n`;
+    comps.filter(c => c.layer === 'frontend').forEach(c => { code += `        ${sid(c.id)}["${c.name}"]\n`; });
+    code += `    end\n`;
+    code += `    subgraph API_ENTRY["🔵 API 入口层"]\n`;
+    comps.filter(c => c.layer === 'entry').slice(0, 20).forEach(c => { code += `        ${sid(c.id)}["${c.name}"]\n`; });
+    code += `    end\n`;
+    code += `    subgraph SERVICES["🟢 业务服务层"]\n`;
+    comps.filter(c => c.layer === 'service').slice(0, 20).forEach(c => { code += `        ${sid(c.id)}["${c.name}"]\n`; });
+    code += `    end\n`;
+    code += `    subgraph DATA["🟡 数据访问层"]\n`;
+    comps.filter(c => c.layer === 'data').forEach(c => { code += `        ${sid(c.id)}["${c.name}"]\n`; });
+    code += `    end\n`;
+    code += `    subgraph EXTERNAL["⚪ 外部服务"]\n`;
+    extSvcs.forEach(s => { code += `        ${sid('EXT_'+s.name)}["${s.name}"]\n`; });
+    code += `    end\n`;
+    (systemData.dependencies || []).forEach(d => {
+        const fe = depMap[d.from];
+        const te = depMap[d.to];
+        if (!fe || !te) return;
+        const arrow = d.type === 'uses' ? '-.->' : '-->';
+        code += `    ${sid(d.from)} ${arrow} ${sid(d.to)}\n`;
+    });
+    extSvcs.forEach(s => {
+        const eid = sid('EXT_'+s.name);
+        (systemData.dependencies || []).filter(d => d.to === s.name).forEach(d => { code += `    ${sid(d.from)} -.-> ${eid}\n`; });
+    });
+    code += `    classDef frontend color:#4a235a,fill:#f5eef8,stroke:#8e44ad,stroke-width:2px\n`;
+    code += `    classDef entry color:#1a5276,fill:#d6eaf8,stroke:#2e86c1,stroke-width:2px\n`;
+    code += `    classDef service color:#1e8449,fill:#d5f5e3,stroke:#27ae60,stroke-width:2px\n`;
+    code += `    classDef data color:#9a7d0a,fill:#fef9e7,stroke:#f39c12,stroke-width:2px\n`;
+    code += `    classDef EXTERNAL color:#6e2f1a,fill:#fdebd0,stroke:#e67e22,stroke-width:2px\n`;
+    comps.filter(c => c.layer === 'frontend').forEach(c => { code += `    class ${sid(c.id)} frontend\n`; });
+    comps.filter(c => c.layer === 'entry').slice(0, 20).forEach(c => { code += `    class ${sid(c.id)} entry\n`; });
+    comps.filter(c => c.layer === 'service').slice(0, 20).forEach(c => { code += `    class ${sid(c.id)} service\n`; });
+    comps.filter(c => c.layer === 'data').forEach(c => { code += `    class ${sid(c.id)} data\n`; });
+    extSvcs.forEach(s => { code += `    class ${sid('EXT_'+s.name)} EXTERNAL\n`; });
+    return code;
+}
+
+function initMermaid() {
+    const container = document.getElementById('mermaidContainer');
+    if (container) container.textContent = buildMermaidCode();
+    mermaid.initialize({ startOnLoad: false, theme: 'base', themeVariables: getMermaidThemeVars(), flowchart: { useMaxWidth: false, htmlLabels: true, curve: 'basis' } });
+    mermaid.run({ querySelector: '.mermaid' });
+    setTimeout(() => { initCanvas(); initHighlight(); }, 600);
+}
+
+// Start
+init();
+</script>
+</body>
+</html>
