@@ -9,250 +9,346 @@
 
 ## 1. When to Use
 
-Use when user says:
+**Activate when user says:**
 - `生成架构图` / `architecture diagram` / `map the APIs`
 - `visualize this project` / `show me the structure`
 - `单模块架构` / `show me [module] module`
 - `单模块架构图` / `[Module] 模块架构`
 
-Skip when:
+**Skip when:**
 - User wants a specific class/file location → use search instead
 - User wants to fix a bug → analyze locally, no diagram needed
 - User wants pure text explanation → respond directly
 
-## 2. Inputs (defaults if not specified)
+---
 
-| Input | Default |
-|-------|---------|
-| `projectRoot` | Cursor workspace root |
-| `scope` | `full-project` |
-| `moduleName` | (none — full project) |
-| `outputPath` | `docs/architecture/` |
-| `outputFormat` | `html` |
-| `backendBaseUrl` | `http://localhost:8080` (for OpenAPI) |
+## 2. Inputs
 
-Output formats: `html` (default), `mermaid`, `json`, `table`
+| Input | Default | Description |
+|-------|---------|-------------|
+| `projectRoot` | Cursor workspace root | Directory to scan |
+| `scope` | `full-project` | `full-project` or `module-only` |
+| `moduleName` | (none) | Sub-directory name when `scope=module-only` |
+| `sourceRoots` | auto-detect | Override auto-detected source root(s) |
+| `outputPath` | `docs/architecture/` | Output directory |
+| `outputFormat` | `html` | `html` / `json` / `mermaid` / `table` |
+| `incremental` | `false` | `true` = diff mode, only changed components |
+| `backendBaseUrl` | `http://localhost:8080` | For OpenAPI spec fallback |
 
-## 3. Execution — 5 Steps
+### Output Format Guide
+
+| Format | Best for |
+|--------|----------|
+| `html` | Interactive browsing, presentations |
+| `json` | CI pipelines, automation, tooling |
+| `mermaid` | Embedded in README or docs |
+| `table` | Quick text overview |
+
+---
+
+## 3. Execution — 6 Steps
+
+### Step 0 — Scope Detection
+
+**Before scanning**, detect project structure:
+
+```
+1. Detect project type: monorepo or monolith?
+   - Look for: pnpm-workspace.yaml, lerna.json, nx.json, Turborepo, maven/gradle multi-module
+   - If monorepo: identify workspace packages (backend/, services/, apps/, packages/, etc.)
+   - Collect ALL source roots
+
+2. For each source root, detect language pack (see Step 1)
+   - One project may have multiple language packs (e.g., backend=java-spring, frontend=vue)
+
+3. Collect source file statistics to set expectations:
+   - Count *.java, *.js, *.ts, *.py, *.go files
+   - Estimate component count before scanning
+   - If estimated > 60 components → prepare aggregation strategy
+```
+
+**Monorepo pattern:**
+```
+workspace/
+├── apps/
+│   ├── backend/         → java-spring source root
+│   └── web/            → vue/react source root
+├── services/
+│   └── auth/           → nodejs-express source root
+├── packages/
+│   └── shared/         → shared lib, skip unless explicitly requested
+└── docs/architecture/  → outputPath
+```
 
 ### Step 1 — Detect Language Pack
 
-Read `LANGUAGES/*.yaml` files from the skill directory. Match by priority (highest first).
+Read all `LANGUAGES/*.yaml` files. Match by priority (highest first).
 
-Priority signals per language pack — match any ONE to select that pack:
-- **java-spring**: `pom.xml` OR `build.gradle` OR `src/main/java` + Spring annotations
-- **nodejs-express**: `package.json` + `node_modules/` + Express patterns
-- **python-fastapi**: `requirements.txt` or `pyproject.toml` + FastAPI/Starlette patterns
-- **go-stdlib**: `go.mod` + `*.go` files
+Match signals — **any ONE** selects that pack:
 
-If no pack matches → use generic regex scan + `confidence: uncertain`.
+| Pack | Signals |
+|------|---------|
+| `java-spring` | `pom.xml` OR `build.gradle` OR `build.gradle.kts` OR `src/main/java/**/*Controller.java` |
+| `nodejs-express` | `package.json` + (`routes/` OR `controllers/` OR `app.js`) |
+| `python-fastapi` | `requirements.txt` OR `pyproject.toml` + (`fastapi` OR `starlette` OR `flask` OR `django`) |
+| `go-stdlib` | `go.mod` + `*.go` files |
+
+**Multi-pack project**: scan each source root with its own pack, merge into single `systemData` with `domains[]` keyed by source root.
+
+**No match**: use generic regex scan + all `confidence: uncertain`.
 
 ### Step 2 — Scan Components
 
-Use the matched language pack to extract:
-- Component name, type, layer, file path, package/namespace
-- Public methods / handlers
-- Routes (HTTP paths + methods)
-- Injected dependencies (field names)
-- Domain / module归属
+Use matched language pack's directory → layer/type mapping.
 
-Exclude by default: `node_modules/`, `.git/`, `dist/`, `build/`, `target/`, `__pycache__/`, `vendor/`, `coverage/`, test files.
+**Critical rule — ALWAYS recurse:**
+> Do NOT scan only top-level directories. Use `Glob` or `ls` to check every subdirectory.
+> Missing subdirectories are the #1 cause of incomplete diagrams.
+
+**Standard exclusions (always skip):**
+```
+node_modules/  .git/  dist/  build/  target/
+__pycache__/  .venv/  venv/  vendor/
+coverage/  .nyc_output/  .pytest_cache/
+.dll/  .exe/  .jar/  .war/
+```
+
+**Component fields to extract:**
+- `id`: unique, safe (alphanumeric + underscore)
+- `name`: display name (e.g., `ProductsService`)
+- `type`: Controller | Service | Repository | Entity | Config | Client | Router | Job | Consumer | Module | Component
+- `layer`: entry | service | data | infra | external | job | event | frontend
+- `file`: relative path from source root
+- `package`: namespace / module path
+- `domain`: inferred from path (e.g., `order`, `product`, `ai`)
+- `routes[]`: HTTP method + path (entry layer only)
+- `methods[]`: notable public method names
+- `injects[]`: injected dependency names
+- `confidence`: explicit | inferred | uncertain
 
 ### Step 3 — Infer Dependencies
 
-Use the matched language pack's dependency patterns:
-- `explicit`: direct declaration in code (import, require, @Autowired, etc.)
-- `inferred`: structural pattern match (e.g., controller naming convention → service)
-- `uncertain`: multiple possible interpretations
+Use language pack's `dependencyPatterns`:
 
-Only emit dependencies with supporting evidence. Do NOT fabricate relationships.
+| Confidence | When to use |
+|------------|-------------|
+| `explicit` | Direct declaration in code (import, @Autowired, require, from x import y) |
+| `inferred` | Structural pattern match (naming convention, directory co-location) |
+| `uncertain` | Multiple possible interpretations — use sparingly |
+
+**Rule**: Only emit dependencies with supporting evidence. Never fabricate relationships.
+If you cannot find evidence for a likely relationship, either skip it or mark `uncertain`.
 
 ### Step 4 — Detect External Services
 
 Scan for: config files, environment variables, SDK imports, connection strings.
 
-Detectable: SQL databases, Redis, MongoDB, Neo4j, Kafka, Elasticsearch, vector stores, S3, third-party APIs (LLM providers, payment, email, auth), message queues.
+Detectable categories:
+- **Databases**: MySQL, PostgreSQL, MongoDB
+- **Cache**: Redis, Memcached
+- **Graph**: Neo4j
+- **Vector**: Qdrant, Chroma, Weaviate, Pinecone
+- **Queue**: Kafka, RabbitMQ, SQS
+- **Search**: Elasticsearch, OpenSearch
+- **Storage**: S3, MinIO, local filesystem
+- **LLM APIs**: DeepSeek, OpenAI, Anthropic, 通义千问, 豆包, Ollama
+- **Payments**: 支付宝, Stripe, PayPal
+- **Email**: SMTP, SendGrid, SES
+- **Auth**: Auth0, Firebase, JWT
 
-Emit `confidence` (explicit/inferred) and `configKey` (the config key or env var that identified it).
+Emit `confidence` (explicit/inferred) and `configKey`.
 
-### Step 5 — Aggregate & Render
+### Step 5 — Aggregate (if needed)
 
-**Before aggregating**, verify completeness:
+**Threshold-based:**
+- `nodeCount ≤ 25` → no aggregation
+- `nodeCount > 25` → group by domain, produce overview + per-domain diagrams
+- `nodeCount > 80` → two-level: overview + domain + layer diagrams
 
-1. Count `@RestController` classes in source → compare with `components[].type==Controller` count
-2. Count `@Service` classes in source → compare with `components[].type==Service` count
-3. Count `@Component` classes in source → compare with `components[].type==Component` count
-4. Count `.vue` files in `frontend/src/views/` → compare with `components[].type==View` count
-5. If any count is lower than source → **scan was incomplete**: add to `warnings[]` and fix the scan
+**Aggregation signals:**
+1. Package prefix (e.g., `com.project.service.*` → `S_SERVICE_GROUP`)
+2. Domain in path (e.g., `...order.*` → `order` domain)
+3. Naming convention (e.g., `XController.java` → `order` domain)
+4. Framework convention (all `*Repository.java` → data layer)
 
-**Then aggregate**:
+**Target node counts:**
+| Diagram | Target | Max |
+|---------|--------|-----|
+| Overview | 15–25 | 30 |
+| Per-domain | 8–15 | 20 |
+| Per-layer | 5–10 | 15 |
 
-- If `nodeCount ≤ 25` → no aggregation needed
-- If `nodeCount > 25` → group by domain OR by layer, produce overview + domain diagrams
-- **Never** silently omit components without listing them in `warnings`
+**Rule**: Never silently omit components. If aggregating, document the summary node in `domains[]` and add to `warnings[]`.
 
-Render using `TEMPLATES/` from skill directory. Fallback chain:
+### Step 6 — Validate & Render
+
+**Pre-render validation** (must pass before writing output):
+1. `nodeCount` in meta equals `components.length`
+2. `@RestController`/`@Service`/`@Component` counts in code ≤ component array length
+3. Every `routes[].componentId` exists in `components[]`
+4. Every `domains[].componentIds[]` exists in `components[]`
+5. `system-data.json` is valid JSON
+6. `warnings[]` exists — add any incompleteness
+
+**Render**: produce output files per format. See Section 5.
+
+---
+
+## 4. Incremental Update Mode (`incremental: true`)
+
+When user wants to update an existing diagram without full rescan:
 
 ```
-html → mermaid-flowchart.md → system-data.json → text summary
+1. Load existing system-data.json
+2. Get file modification times from last scan
+3. Only rescan files modified since last run
+4. Diff: added / removed / changed components
+5. Update system-data.json, rebuild HTML
+6. Report: "X added, Y removed, Z updated"
 ```
 
-Always produce at least one output. Never return empty-handed.
+**When to auto-trigger**: User says "更新架构图" / "refresh diagram" / "增量更新".
 
-## 4. systemData Schema
-
-The core data structure. Output as JSON.
-
-```json
-{
-  "meta": {
-    "projectType": "java-spring | nodejs | python | go | multi-stack",
-    "projectName": "string",
-    "generatedAt": "ISO 8601",
-    "sourceRoots": ["path"],
-    "scope": "full-project | module-only",
-    "moduleName": "string | null",
-    "languagePack": "string",
-    "outputFormat": "html | mermaid | json | table",
-    "nodeCount": "number"
-  },
-  "components": [{
-    "id": "unique-node-id",
-    "name": "display-name",
-    "type": "Controller|Service|Repository|Entity|Config|Client|...",
-    "layer": "entry|service|data|infra|external|job|event",
-    "package": "namespace",
-    "file": "relative-path",
-    "domain": "domain-name",
-    "routes": [{ "method": "GET", "path": "/api/...", "desc": "..." }],
-    "methods": ["methodName"],
-    "injects": ["dependencyName"],
-    "confidence": "explicit | inferred | uncertain",
-    "warnings": []
-  }],
-  "routes": [{
-    "method": "GET|POST|PUT|DELETE|PATCH",
-    "path": "/api/...",
-    "componentId": "...",
-    "desc": "...",
-    "source": "static-scan | openapi | inferred"
-  }],
-  "dependencies": [{
-    "from": "component-id",
-    "to": "component-id | external-service-name",
-    "type": "calls | injects | uses | queries | stores",
-    "confidence": "explicit | inferred | uncertain",
-    "evidence": "brief evidence"
-  }],
-  "externalServices": [{
-    "name": "MySQL",
-    "type": "database | cache | queue | graph | vector | object-storage | api",
-    "configKey": "spring.datasource.url",
-    "confidence": "explicit | inferred"
-  }],
-  "domains": [{
-    "name": "order",
-    "componentIds": ["E_ORDER", "S_ORDER", "R_ORDER"]
-  }],
-  "entryPoints": [{
-    "name": "Product HTTP API",
-    "type": "http | cli | job | event | scheduled",
-    "componentId": "E_PRODUCT"
-  }],
-  "warnings": ["string — honest limitations"]
-}
-```
+---
 
 ## 5. Output Files
 
-| Format | File | Description |
-|--------|------|-------------|
-| `html` | `docs/architecture/architecture.html` | Interactive Mermaid diagram |
-| `mermaid` | `docs/architecture/mermaid-flowchart.md` | Pure Mermaid text |
-| `json` | `docs/architecture/system-data.json` | Structured JSON |
-| `table` | `docs/architecture/component-table.md` | Markdown table |
+### Primary Outputs (always produce)
 
-Always output `system-data.json` alongside the primary format.
+| Format | File | When |
+|--------|------|------|
+| `json` | `docs/architecture/system-data.json` | Always (machine-readable source of truth) |
+| `html` | `docs/architecture/architecture.html` | Default |
+| `mermaid` | `docs/architecture/mermaid-flowchart.md` | Requested or `format=mermaid` |
+| `table` | `docs/architecture/component-table.md` | Requested or `format=table` |
+
+### Template Files (skill resources)
+
+| File | Purpose |
+|------|---------|
+| `TEMPLATES/architecture.html` | HTML viewer template |
+| `TEMPLATES/system-data.json` | JSON data template (with placeholder systemData) |
+
+**Note**: `architecture.html` in the output directory is generated from `TEMPLATES/architecture.html` by replacing the `systemData` placeholder with actual data. The HTML template in the skill repo contains a generic placeholder — it does NOT contain project-specific data.
+
+### Fallback Chain
+
+If a template is missing:
+```
+HTML template exists → architecture.html (interactive)
+  ↓ template missing
+Mermaid code available → mermaid-flowchart.md + system-data.json
+  ↓ mermaid fails
+JSON only → system-data.json
+  ↓ scan fails entirely
+Text summary (always succeeds)
+```
+
+---
 
 ## 6. Validation Checklist
 
-### Pre-Execution — Scope Verification (MUST verify before scanning)
+### Pre-Execution — Scope Verification
 
-Before scanning, confirm these paths exist:
+**MUST verify before scanning any directory:**
 
-- [ ] `backend/src/main/java/com/project/web/onlineshopping/controller/` (exists → check subdirs)
-- [ ] `backend/src/main/java/com/project/web/onlineshopping/controller/ai/` — List files
-- [ ] `backend/src/main/java/com/project/web/onlineshopping/controller/buyer/` — List files
-- [ ] `backend/src/main/java/com/project/web/onlineshopping/controller/logistics/` — List files
-- [ ] `backend/src/main/java/com/project/web/onlineshopping/controller/order/` — List files
-- [ ] `backend/src/main/java/com/project/web/onlineshopping/controller/product/` — List files
-- [ ] `backend/src/main/java/com/project/web/onlineshopping/controller/promotion/` — List files
-- [ ] `backend/src/main/java/com/project/web/onlineshopping/controller/seller/` — List files
-- [ ] `backend/src/main/java/com/project/web/onlineshopping/controller/system/` — List files
-- [ ] `backend/src/main/java/com/project/web/onlineshopping/service/` — Check subdirs recursively
-- [ ] `backend/src/main/java/com/project/web/onlineshopping/ai/` — List files (agents, providers, metrics, nlp, resilience)
-- [ ] `backend/src/main/java/com/project/web/onlineshopping/kg/` — List files
-- [ ] `backend/src/main/java/com/project/web/onlineshopping/rag/` — List files
-- [ ] `backend/src/main/java/com/project/web/onlineshopping/config/` — List files
-- [ ] `backend/src/main/java/com/project/web/onlineshopping/listener/` — List files
-- [ ] `backend/src/main/java/com/project/web/onlineshopping/domain/event/` — List files
-- [ ] `backend/src/main/java/com/project/web/onlineshopping/task/` — List files
-- [ ] `backend/src/main/java/com/project/web/onlineshopping/vector/` — List files
-- [ ] `backend/src/main/java/com/project/web/onlineshopping/payment/` — List files
-- [ ] `frontend/vue-onlineshopping/src/views/` — List all .vue files
-- [ ] `frontend/vue-onlineshopping/src/components/` — List all .vue files
-- [ ] `frontend/vue-onlineshopping/src/router/` — Check router/index.js
+- [ ] Identify project type: monorepo? → list all workspace packages
+- [ ] Identify source root(s): one or multiple? → scan each
+- [ ] For each source root: which language pack matches?
+- [ ] List ALL subdirectories (not just top-level) before assuming structure
+- [ ] Check for frontend directory (Vue/React) — scan if present
+- [ ] Estimate total component count → decide on aggregation strategy
 
-**Rule: List files in EVERY subdirectory. Do NOT assume a directory is empty.**
+**Rule**: List files in EVERY subdirectory. Do NOT assume a directory is empty or structured a certain way.
 
-### Post-Execution — Completeness Check (MUST verify before responding)
+### Post-Execution — Completeness Check
 
-- [ ] `nodeCount` in meta equals actual components array length
-- [ ] `@RestController` class count in code ≤ components array length (scan was complete)
-- [ ] `@Service` class count in code ≤ components array length (scan was complete)
-- [ ] `@Component` class count in code ≤ components array length (scan was complete)
-- [ ] `@Repository` class count in code ≤ components array length (scan was complete)
-- [ ] `@Configuration` class count in code ≤ components array length (scan was complete)
-- [ ] All `.vue` files in `views/` are represented in components array (layer: frontend)
-- [ ] `router/index.js` routes are reflected in the components or entryPoints
-- [ ] Every component in `domains[].componentIds` exists in `components[]` (no dangling refs)
+**MUST verify before responding:**
+
+- [ ] `meta.nodeCount` equals `components.length`
+- [ ] `@RestController` class count in code ≤ `components.length` (all found)
+- [ ] `@Service` class count in code ≤ `components.length` (all found)
+- [ ] `@Component` class count in code ≤ `components.length` (all found)
+- [ ] `@Repository` class count in code ≤ `components.length` (all found)
+- [ ] `@Configuration` class count in code ≤ `components.length` (all found)
+- [ ] All `.vue`/`.tsx` files in `views/` represented in `components` (layer: frontend)
+- [ ] `router/index.js` routes reflected in `routes[]` or `entryPoints[]`
 - [ ] Every `routes[].componentId` exists in `components[]` (no dangling refs)
-- [ ] `system-data.json` is valid JSON (parseable)
-- [ ] `{{SYSTEM_DATA}}` replaced in HTML template
-- [ ] `{{MERMAID_CODE}}` replaced in HTML template (if using HTML)
-- [ ] `warnings` field exists — if scan was partial or directories were missing, warn explicitly
+- [ ] Every `domains[].componentIds[]` exists in `components[]` (no dangling refs)
+- [ ] `system-data.json` is valid, parseable JSON
+- [ ] `warnings[]` field exists — emit if scan was partial or any count didn't match
 - [ ] At least one output file written
 
-### Post-Execution — Mermaid HTML Integrity Check
+### Post-Execution — HTML Integrity Check
 
-- [ ] Every `subgraph NAME[...]` has a matching `end` on its own line
-- [ ] Two diagrams use separate `<div class="mermaid" id="...">` containers
-- [ ] Tab switch function calls `mermaid.run()` on the hidden container when switching
-- [ ] No `</div>` accidentally closes the mermaid container before the second diagram starts
+- [ ] `systemData` placeholder in `TEMPLATES/architecture.html` replaced with actual JSON
+- [ ] `mermaidContainer` div has dynamic code injection (not hardcoded Mermaid text)
+- [ ] Tab switch calls `mermaid.run()` on the hidden container when switching
+- [ ] `buildMermaidCode()` uses correct JS syntax (no regex `[^...` errors, no variable shadowing)
+
+---
 
 ## 7. Quality Rules
 
-- **Evidence > inference**: explicit deps only if code proves it
-- **Aggregation > density**: overview diagram ≤ 25 nodes
-- **Honest uncertainty**: label `uncertain` instead of guessing
-- **Graceful fallback**: never return empty, always produce something
-- **Separate concerns**: SKILL.md = flow; REFERENCE.md = details; LANGUAGES/ = per-language rules
+### Evidence > Inference
+Only mark deps `explicit` if code proves it. Use `inferred` for naming conventions. Use `uncertain` for ambiguous cases.
 
-### Anti-Patterns (MUST avoid)
+### Aggregation > Density
+Overview diagram ≤ 25 nodes. If more, aggregate by domain and produce per-domain views.
 
-- ❌ **Incomplete directory scan**: Only scanning top-level `controller/` files while `controller/ai/`, `controller/buyer/` etc. exist. **Fix: Always `Glob` or `ls` every subdirectory recursively.**
+### Honest Uncertainty
+Label `uncertain` instead of guessing. If you cannot verify a relationship, skip it.
+
+### Graceful Fallback
+Never return empty. Always produce at least a text summary.
+
+### Separate Concerns
+| File | Content |
+|------|---------|
+| `SKILL.md` | Flow, triggers, validation |
+| `REFERENCE.md` | Language rules, schema, color palette |
+| `LANGUAGES/*.yaml` | Per-framework detection + mapping rules |
+| `TEMPLATES/` | Output templates (data-agnostic) |
+
+---
+
+## 8. Anti-Patterns (MUST Avoid)
+
+- ❌ **Hardcoded paths**: Never put project-specific paths in SKILL.md. All paths must be dynamically detected or parameterized.
+- ❌ **Incomplete directory scan**: Scanning only top-level `controller/` while subdirs exist. **Fix: Always Glob/ls every subdirectory recursively.**
 - ❌ **Missing sub-modules**: Ignoring `ai/`, `kg/`, `rag/`, `config/`, `listener/`, `task/`, `vector/` directories. **Fix: Check all non-standard directories.**
-- ❌ **Missing frontend**: Scanning backend only and omitting Vue `views/`, `components/`, `router/`. **Fix: Always scan `frontend/` when it exists.**
-- ❌ **Emitting without verification**: Outputting `system-data.json` without counting components. **Fix: `nodeCount` must equal `components.length`.**
-- ❌ **Silent omission**: A component exists in code but is absent from the diagram without any `warning`. **Fix: If scan was partial, emit a warning.**
-- ❌ **Dangling references**: `routes[].componentId` or `domains[].componentIds[]` references a component not in `components[]`. **Fix: Cross-check all IDs.**
-- ❌ **Aggregating without consent**: Grouping components into a summary node without user request. **Fix: Only aggregate when `nodeCount > 25`.**
+- ❌ **Missing frontend**: Scanning backend only. **Fix: Always scan `frontend/` when it exists.**
+- ❌ **Emitting without verification**: Outputting JSON without counting components. **Fix: `meta.nodeCount` must equal `components.length`.**
+- ❌ **Silent omission**: Component exists but absent from diagram without `warning`. **Fix: Emit warning if scan was partial.**
+- ❌ **Dangling references**: `routes[].componentId` references non-existent component. **Fix: Cross-check all IDs.**
+- ❌ **Aggregating without consent**: Grouping without user request. **Fix: Only aggregate when `nodeCount > 25`.**
+- ❌ **Embedding project data in template**: `architecture.html` in skill repo must use placeholder, never project-specific `systemData`.
 
-## 8. Reference Files
+---
 
-- `LANGUAGES/java-spring.yaml` — Java Spring Boot rules
-- `LANGUAGES/nodejs-express.yaml` — Node.js Express rules
-- `LANGUAGES/python-fastapi.yaml` — Python FastAPI rules
-- `LANGUAGES/go-stdlib.yaml` — Go stdlib rules
-- `REFERENCE.md` — schema definitions, color palette, examples
-- `TEMPLATES/architecture.html` — interactive HTML viewer
+## 9. Error Recovery
+
+| Failure | Recovery |
+|---------|----------|
+| Language pack not found | Fall back to generic regex scan with `confidence: uncertain` |
+| Directory does not exist | Skip gracefully, add to `warnings[]` |
+| Template file missing | Fall back to next format in chain (Section 5) |
+| JSON parse error in template | Emit mermaid-only output |
+| Mermaid render error | Fall back to JSON + text summary |
+| Component count mismatch | Add to `warnings[]`, note which type under-counted |
+| Network/external service detection | Mark as `inferred`, list the pattern that suggested it |
+| Monorepo detection uncertain | Scan all potential roots, emit `warnings[]` |
+
+---
+
+## 10. Reference Files
+
+| File | Purpose |
+|------|---------|
+| `LANGUAGES/java-spring.yaml` | Java Spring Boot detection + rules |
+| `LANGUAGES/nodejs-express.yaml` | Node.js Express detection + rules |
+| `LANGUAGES/python-fastapi.yaml` | Python FastAPI detection + rules |
+| `LANGUAGES/go-stdlib.yaml` | Go stdlib/chi/Gin detection + rules |
+| `REFERENCE.md` | Schema definitions, color palette, aggregation rules, external service table |
+| `TEMPLATES/architecture.html` | HTML viewer template (generic, no project data) |
+| `TEMPLATES/system-data.json` | JSON data template |

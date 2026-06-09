@@ -5,123 +5,89 @@
 # and output format details. Consumed by SKILL.md.
 # ============================================================
 
-## systemData Schema (Full)
+## systemData Schema — Quick Reference
 
-See SKILL.md Section 4 for the full schema. Key conventions:
+Full schema in SKILL.md Section 3.
 
-- `layer` values: `entry` | `service` | `data` | `infra` | `external` | `job` | `event`
-- `type` values: `Controller` | `Service` | `Repository` | `Entity` | `Router` | `Handler` | `Config` | `Client` | `Job` | `Consumer` | `Module`
-- `confidence` values: `explicit` | `inferred` | `uncertain`
-- `warnings[]` must be honest. Emit for: partial scans, inferred components, unknown project types.
+| Field | Values |
+|-------|--------|
+| `layer` | `entry` \| `service` \| `data` \| `infra` \| `external` \| `job` \| `event` \| `frontend` |
+| `type` | `Controller` \| `Service` \| `Repository` \| `Entity` \| `Router` \| `Handler` \| `Config` \| `Client` \| `Job` \| `Consumer` \| `Module` \| `Component` \| `View` |
+| `confidence` | `explicit` \| `inferred` \| `uncertain` |
+| `dep type` | `calls` \| `injects` \| `uses` \| `queries` \| `stores` \| `subscribes` |
+
+**Rule**: `warnings[]` must be honest. Emit for: partial scans, inferred components, unknown project types.
 
 ---
 
-## Language Packs
+## java-spring
 
-### java-spring
+**Signals**: `pom.xml` OR `build.gradle` OR `build.gradle.kts` OR `src/main/java/**/*Controller.java`
 
-**Signals**: `pom.xml` OR `build.gradle` OR (`src/main/java` + `@RestController`)
-
-**Directories → Layer/Type**:
+### Directory → Layer/Type
 
 | Directory | Type | Layer |
 |-----------|------|-------|
 | `controller/` | Controller | entry |
-| `controller/ai/` | Controller | entry |
-| `controller/buyer/` | Controller | entry |
-| `controller/logistics/` | Controller | entry |
-| `controller/order/` | Controller | entry |
-| `controller/product/` | Controller | entry |
-| `controller/promotion/` | Controller | entry |
-| `controller/seller/` | Controller | entry |
-| `controller/system/` | Controller | entry |
+| `controller/*/` | Controller | entry |
 | `service/` | Service | service |
+| `service/*/` | Service | service |
 | `service/impl/` | Service | service |
-| `service/ai/` | Service | service |
-| `service/buyer/` | Service | service |
-| `service/logistics/` | Service | service |
-| `service/mongo/` | Service | service |
-| `service/notification/` | Service | service |
-| `service/order/` | Service | service |
-| `service/product/` | Service | service |
-| `service/system/` | Service | service |
 | `repository/` | Repository | data |
-| `repository/ai/` | Repository | data |
-| `repository/mongo/` | Repository | data |
-| `repository/order/` | Repository | data |
-| `repository/product/` | Repository | data |
-| `repository/promotion/` | Repository | data |
-| `repository/system/` | Repository | data |
+| `repository/*/` | Repository | data |
 | `entity/` | Entity | data |
 | `entity/*/` | Entity | data |
 | `model/` | Entity | data |
 | `dto/` | Entity | data |
 | `config/` | Config | infra |
-| `ai/` (root module) | Component | service |
-| `ai/agent/` | Component | service |
-| `ai/controller/` | Controller | entry |
-| `ai/provider/` | Component | infra |
-| `ai/metrics/` | Component | service |
-| `ai/nlp/` | Component | service |
-| `ai/resilience/` | Component | service |
+| `config/*/` | Config | infra |
+| `ai/` | Component | service |
+| `ai/*/` | (per subdir) | service |
 | `kg/` | Service | service |
-| `kg/controller/` | Controller | entry |
-| `kg/service/` | Service | service |
-| `kg/entity/` | Entity | data |
 | `rag/` | Service | service |
-| `rag/vector/` | Client | infra |
-| `rag/service/` | Service | service |
-| `rag/retriever/` | Service | service |
 | `vector/` | Service | service |
 | `payment/` | Component | infra |
-| `payment/gateway/` | Component | infra |
+| `payment/gateway/` | Client | external |
 | `listener/` | Consumer | event |
 | `domain/event/` | Consumer | event |
 | `task/` | Job | job |
 
-**Dependency Inference (Spring)**:
+### Dependency Inference
 
 | Pattern | From → To | Confidence |
 |---------|-----------|------------|
 | `@Autowired` field type | Controller/Service → Service/Repository | explicit |
 | Constructor `new X()` | Any → X | explicit |
-| `@RequiredArgsConstructor` | Any → injected type | explicit |
+| `@RequiredArgsConstructor` / `@AllArgsConstructor` | Any → injected type | explicit |
 | `implements Interface` | Component → Interface type | explicit |
-| Package naming heuristic | Controller → Service (by convention) | inferred |
-| `MongoRepository<,>` / `JPA` | Service → Repository | explicit |
+| `extends BaseClass` | Entity → Base Entity | explicit |
+| `MongoRepository<,>` / `JpaRepository<,>` | Service → Repository | explicit |
+| Package naming: `XController` → `XService` | Controller → Service | inferred |
 
-**Routes (Spring)**:
+### Routes
 
-| Annotation | Extract |
-|------------|---------|
-| `@GetMapping` | `method=GET` |
-| `@PostMapping` | `method=POST` |
-| `@PutMapping` | `method=PUT` |
-| `@DeleteMapping` | `method=DELETE` |
-| `@PatchMapping` | `method=PATCH` |
-| `@RequestMapping` | `method=GET` (default) |
+Extract from: `@GetMapping`, `@PostMapping`, `@PutMapping`, `@DeleteMapping`, `@PatchMapping`, `@RequestMapping`.
+Path: `"..."` from `value=` or `path=`.
 
-Path: extract `"..."` or `'...'` from `value=` or `path=`.
-
-**Mermaid Colors (Spring)**:
+### Colors
 
 ```mermaid
-classDef entry fill:#1a1a2e,stroke:#e94560,color:#fff
+classDef entry   fill:#1a1a2e,stroke:#e94560,color:#fff
 classDef service fill:#16213e,stroke:#0f3460,color:#e0e0e0
-classDef data fill:#0f3460,stroke:#53d8fb,color:#fff
-classDef infra fill:#1b1b2f,stroke:#a29bfe,color:#e0e0e0
+classDef data    fill:#0f3460,stroke:#53d8fb,color:#fff
+classDef infra   fill:#1b1b2f,stroke:#a29bfe,color:#e0e0e0
 classDef external fill:#2d2d44,stroke:#ffd93d,color:#fff
-classDef job fill:#1b1b2f,stroke:#6bcb77,color:#fff
-classDef event fill:#1b1b2f,stroke:#ff6b6b,color:#fff
+classDef job     fill:#1b1b2f,stroke:#6bcb77,color:#fff
+classDef event   fill:#1b1b2f,stroke:#ff6b6b,color:#fff
 ```
 
 ---
 
-### nodejs-express
+## nodejs-express
 
-**Signals**: `package.json` + `node_modules/` + (`routes/` OR `controllers/` OR `app.js`/`server.js`)
+**Signals**: `package.json` + (`routes/` OR `controllers/` OR `app.js`)
 
-**Directories → Layer/Type**:
+### Directory → Layer/Type
 
 | Directory | Type | Layer |
 |-----------|------|-------|
@@ -136,40 +102,40 @@ classDef event fill:#1b1b2f,stroke:#ff6b6b,color:#fff
 | `jobs/` | Job | job |
 | `workers/` | Job | job |
 
-**Dependency Inference (Node.js)**:
+### Dependency Inference
 
 | Pattern | Confidence |
 |---------|------------|
-| `require('...')` or `import from` | explicit |
+| `require('...')` / `import from` | explicit |
 | `router.get/post/put/delete(path, handler)` | explicit (route) |
 | `app.use(middleware)` | explicit |
-| Controller name heuristic: `XController` → `XService` | inferred |
-| `fs`, `path`, `crypto` stdlib imports | skip (not external) |
+| `XController` → `XService` (naming) | inferred |
+| stdlib imports (`fs`, `path`, `crypto`) | skip |
 
-**Routes (Express)**:
+### Routes
 
-Extract from `router.get(path, ...)`, `router.post(path, ...)`, `app.get(path, ...)`, etc.
-Path: literal string from first argument.
+Extract from `router.get(path, ...)`, `router.post(path, ...)`, `app.get(path, ...)`.
+Path: first string argument.
 
-**Mermaid Colors (Node.js)**:
+### Colors
 
 ```mermaid
-classDef entry fill:#2d5016,stroke:#6bcb77,color:#fff
+classDef entry   fill:#2d5016,stroke:#6bcb77,color:#fff
 classDef service fill:#1a3a0f,stroke:#a8e063,color:#fff
-classDef data fill:#0f2d1f,stroke:#53d8fb,color:#fff
-classDef infra fill:#1a1a2e,stroke:#a29bfe,color:#e0e0e0
+classDef data    fill:#0f2d1f,stroke:#53d8fb,color:#fff
+classDef infra   fill:#1a1a2e,stroke:#a29bfe,color:#e0e0e0
 classDef external fill:#2d2d44,stroke:#ffd93d,color:#fff
-classDef job fill:#1b1b2f,stroke:#ff9f43,color:#fff
-classDef event fill:#1b1b2f,stroke:#ff6b6b,color:#fff
+classDef job     fill:#1b1a2e,stroke:#ff9f43,color:#fff
+classDef event   fill:#1a1a2e,stroke:#ff6b6b,color:#fff
 ```
 
 ---
 
-### python-fastapi
+## python-fastapi
 
 **Signals**: `requirements.txt` OR `pyproject.toml` + (`fastapi` OR `starlette` OR `flask` OR `django`)
 
-**Directories → Layer/Type**:
+### Directory → Layer/Type
 
 | Directory | Type | Layer |
 |-----------|------|-------|
@@ -184,46 +150,46 @@ classDef event fill:#1b1b2f,stroke:#ff6b6b,color:#fff
 | `tasks/` or `jobs/` | Job | job |
 | `consumers/` | Consumer | event |
 
-**Dependency Inference (Python)**:
+### Dependency Inference
 
 | Pattern | Confidence |
 |---------|------------|
 | `from x import y` / `import x` | explicit |
-| `@router.get/post/put/delete` | explicit (route) |
+| `@router.get/post/put/delete` | explicit |
 | `@app.get` (FastAPI app) | explicit |
 | `@app.route` (Flask) | explicit |
 | `APIRouter()` + include_router | explicit |
-| Naming convention: `router` → `service` | inferred |
+| `router` → `service` (naming) | inferred |
 
-**Routes (FastAPI)**:
+### Routes
 
 Extract from `@router.get("/path")`, `@app.post("/path")`, `@router.api_route`.
 Method from decorator name. Path from string argument.
 
-**Mermaid Colors (Python)**:
+### Colors
 
 ```mermaid
-classDef entry fill:#1c3144,stroke:#00d9ff,color:#fff
+classDef entry   fill:#1c3144,stroke:#00d9ff,color:#fff
 classDef service fill:#0d1b2a,stroke:#3a86ff,color:#fff
-classDef data fill:#1b2d3e,stroke:#53d8fb,color:#fff
-classDef infra fill:#1a1a2e,stroke:#a29bfe,color:#e0e0e0
+classDef data    fill:#1b2d3e,stroke:#53d8fb,color:#fff
+classDef infra   fill:#1a1a2e,stroke:#a29bfe,color:#e0e0e0
 classDef external fill:#2d2d44,stroke:#ffd93d,color:#fff
-classDef job fill:#1b1b2f,stroke:#6bcb77,color:#fff
-classDef event fill:#1b1b2f,stroke:#ff6b6b,color:#fff
+classDef job     fill:#1a1a2e,stroke:#6bcb77,color:#fff
+classDef event   fill:#1a1a2e,stroke:#ff6b6b,color:#fff
 ```
 
 ---
 
-### go-stdlib
+## go-stdlib
 
 **Signals**: `go.mod` + `*.go` files
 
-**Directories → Layer/Type**:
+### Directory → Layer/Type
 
 | Directory | Type | Layer |
 |-----------|------|-------|
 | `cmd/` | Handler | entry |
-| `internal/` (by convention) | Service | service |
+| `internal/` | Service | service |
 | `pkg/` | Service | service |
 | `handlers/` | Handler | entry |
 | `services/` | Service | service |
@@ -234,7 +200,7 @@ classDef event fill:#1b1b2f,stroke:#ff6b6b,color:#fff
 | `client/` | Client | external |
 | `jobs/` | Job | job |
 
-**Dependency Inference (Go)**:
+### Dependency Inference
 
 | Pattern | Confidence |
 |---------|------------|
@@ -245,57 +211,56 @@ classDef event fill:#1b1b2f,stroke:#ff6b6b,color:#fff
 | Constructor func returning struct | inferred |
 | Interface satisfying via struct field | inferred |
 
-**Routes (Go)**:
+### Routes
 
 Extract from `http.HandleFunc`, `router.Handle`, `router.Method` (chi), `v1.POST` (Gin).
-Path from string argument. Method from pattern (GET/POST/etc.) or default.
+Path from string argument. Method from pattern or default GET.
 
-**Mermaid Colors (Go)**:
+### Colors
 
 ```mermaid
-classDef entry fill:#003d5b,stroke:#00a8e8,color:#fff
+classDef entry   fill:#003d5b,stroke:#00a8e8,color:#fff
 classDef service fill:#001d3d,stroke:#0077b6,color:#fff
-classDef data fill:#002855,stroke:#53d8fb,color:#fff
-classDef infra fill:#1a1a2e,stroke:#a29bfe,color:#e0e0e0
+classDef data    fill:#002855,stroke:#53d8fb,color:#fff
+classDef infra   fill:#1a1a2e,stroke:#a29bfe,color:#e0e0e0
 classDef external fill:#2d2d44,stroke:#ffd93d,color:#fff
-classDef job fill:#1b1b2f,stroke:#6bcb77,color:#fff
-classDef event fill:#1b1b2f,stroke:#ff6b6b,color:#fff
+classDef job     fill:#1a1a2e,stroke:#6bcb77,color:#fff
+classDef event   fill:#1a1a2e,stroke:#ff6b6b,color:#fff
 ```
 
 ---
 
-## Vue 3 Frontend
+## Vue 3 Frontend (cross-framework)
 
-**Signals**: `frontend/` directory + `package.json` containing `vue` + `src/` directory
+**Signals**: `frontend/` + `package.json` containing `vue` + `src/`
 
-**Directories → Layer/Type**:
+### Directory → Layer/Type
 
 | Directory | Type | Layer |
 |-----------|------|-------|
 | `src/views/` | View | frontend |
 | `src/components/` | Component | frontend |
-| `src/components/ai/` | Component | frontend |
-| `src/components/seller/` | Component | frontend |
-| `src/components/common/` | Component | frontend |
+| `src/components/*/` | Component | frontend |
 | `src/services/` | Config | frontend |
 | `src/stores/` | Config | frontend |
 | `src/router/` | Router | frontend |
 | `src/composables/` | Config | frontend |
 | `src/main.js` | Config | frontend |
 
-**Rules**:
+### Rules
 - Scan `router/index.js` for `path` + `component` (imported from `../views/`)
-- Every `.vue` file in `views/` → one component entry (type: View, layer: frontend)
-- Every notable `.vue` in `components/` → one component entry (type: Component, layer: frontend)
-- `domain` inferred from path: `views/OrderHistoryView.vue` → `order`, `views/FavoriteView.vue` → `buyer`
-- Pinia stores in `stores/` → treat as infrastructure components for frontend layer
+- Every `.vue` file in `views/` → one component entry (type: `View`, layer: `frontend`)
+- Every notable `.vue` in `components/` → one component entry (type: `Component`, layer: `frontend`)
+- `domain` inferred from path: `views/OrderHistoryView.vue` → `order`
+- Pinia stores → treat as infrastructure components for frontend layer
+- Colors: same as `frontend` layer for the backend language pack
 
 ---
 
 ## External Service Detection Table
 
 | Service Type | Config Keys / Import Patterns |
-|---------------|-------------------------------|
+|-------------|-------------------------------|
 | MySQL | `spring.datasource.url`, `mysql://`, `jdbc:mysql` |
 | PostgreSQL | `spring.datasource.url`, `postgresql://`, `jdbc:postgresql` |
 | Redis | `spring.data.redis.host`, `REDIS_URL`, `ioredis`, `redis-js` |
@@ -320,34 +285,24 @@ classDef event fill:#1b1b2f,stroke:#ff6b6b,color:#fff
 ## Aggregation Rules
 
 ### When to Aggregate
-
-- Overview diagram **> 25 nodes** → aggregate by domain
-- Single module diagram **> 15 nodes** → aggregate by layer
-- Very large codebase → overview + per-domain diagrams
-
-### Aggregation Signals
-
-1. Package/directory prefix (e.g., `com.project.web.onlineshopping.service.*` → `S_SERVICE_GROUP`)
-2. Domain name in package (e.g., `...order.*` → `order` domain)
-3. Naming convention (e.g., `XController.java` → `X` entity)
-4. Framework convention (e.g., all `*Repository.java` → data layer)
+- Overview > 25 nodes → aggregate by domain
+- Single module > 15 nodes → aggregate by layer
+- Very large codebase → overview + per-domain + per-layer diagrams
 
 ### Target Node Counts
-
 | Diagram Type | Target | Max |
 |-------------|--------|-----|
 | Overview (full project) | 15–25 | 30 |
-| Domain/module | 8–15 | 20 |
-| Single layer | 5–10 | 15 |
+| Per-domain | 8–15 | 20 |
+| Per-layer | 5–10 | 15 |
 
 ---
 
 ## Quality Anti-Patterns
 
 ### Do NOT
-
 - ❌ Emit a dependency without evidence
-- ❌ Set `confidence: explicit` if only naming convention matches
+- ❌ Set `confidence: explicit` for naming convention only
 - ❌ Include every file as a node (results in class diagram, not architecture)
 - ❌ Omit `warnings` when scan was partial or project type was uncertain
 - ❌ Use OpenAPI as a substitute for source scanning
@@ -355,55 +310,8 @@ classDef event fill:#1b1b2f,stroke:#ff6b6b,color:#fff
 - ❌ Guess `implements`/`extends` relationships without source verification
 
 ### DO
-
-- ✅ Group `Repository` layer as `R_*` (data access)
+- ✅ Group `Repository` as `R_*` (data access)
 - ✅ Group `Config` and `middleware` as `infra` layer
 - ✅ Label `inferred` for structural pattern matches
 - ✅ Label `uncertain` when multiple interpretations exist
 - ✅ Emit `warnings` for: partial scans, inferred components, missing templates
-
----
-
-## Mermaid Diagram Structure
-
-Use subgraphs for layers:
-
-```mermaid
-flowchart TB
-    subgraph frontend["前端展示层"]
-        F_VUE["Vue SPA<br/><small>Pinia / Vue Router</small>"]
-    end
-
-    subgraph entry["入口层"]
-        E_API["Product API<br/><small>E_PRODUCT</small>"]
-    end
-
-    subgraph service["业务层"]
-        S_SVC["Products Service<br/><small>S_PRODUCT</small>"]
-    end
-
-    subgraph data["数据访问层"]
-        R_REPO["Products Repository<br/><small>R_PRODUCT</small>"]
-    end
-
-    F_VUE --> E_API
-    E_API --> S_SVC
-    S_SVC --> R_REPO
-
-    classDef frontend fill:#...,stroke:#...,color:#...
-    classDef entry fill:#...,stroke:#...,color:#...
-    classDef service fill:#...,stroke:#...,color:#...
-    classDef data fill:#...,stroke:#...,color:#...
-
-    class F_VUE frontend
-    class E_API entry
-    class S_SVC service
-    class R_REPO data
-```
-
-Rules:
-- Node IDs must be unique
-- Edge arrows: `A --> B` (calls), `A -.-> B` (uses), `A o--o B` (stores)
-- Use `<br/><small>` for subtext in node labels
-- External services go in their own subgraph at the bottom
-- Keep edges directional and minimal
