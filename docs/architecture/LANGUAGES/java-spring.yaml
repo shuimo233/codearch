@@ -48,6 +48,33 @@ directories:
   "kg/**/":            { type: Service, layer: service }
   rag/:                { type: Service, layer: service }
   "rag/**/":           { type: Service, layer: service }
+  "domain/event/":     { type: Consumer, layer: event }
+  "domain/event/**/":  { type: Consumer, layer: event }
+  vector/:             { type: Client, layer: infra }
+  "vector/**/":       { type: Client, layer: infra }
+
+# Frontend scanning (Vue 3 SPA — cross-framework)
+frontendScan:
+  enabled: true
+  signals:
+    - glob: "frontend/**/package.json" + '"vue"'
+    - glob: "src/views/*.vue"
+    - glob: "src/components/**/*.vue"
+  directories:
+    "src/views/":       { type: View, layer: frontend }
+    "src/views/**/":     { type: View, layer: frontend }
+    "src/components/":  { type: Component, layer: frontend }
+    "src/components/*/": { type: Component, layer: frontend }
+    "src/components/**/": { type: Component, layer: frontend }
+    "src/services/":    { type: Config, layer: frontend }
+    "src/stores/":      { type: Config, layer: frontend }
+    "src/router/":      { type: Router, layer: frontend }
+    "src/composables/": { type: Config, layer: frontend }
+    "src/main.js":      { type: Config, layer: frontend }
+  domainInference:
+    - path: "src/views/(\\w+)View.vue" → domain: "$1" (lowercased)
+    - path: "src/components/(\\w+)/"   → domain: "$1" (lowercased)
+  routerFile: "src/router/index.js"
 
 # File suffix → Layer/Type mapping (fallback when directory not matched)
 fileSuffix:

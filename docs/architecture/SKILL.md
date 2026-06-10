@@ -116,7 +116,7 @@ coverage/  .nyc_output/  .pytest_cache/
 **Component fields to extract:**
 - `id`: unique, safe (alphanumeric + underscore)
 - `name`: display name (e.g., `ProductsService`)
-- `type`: Controller | Service | Repository | Entity | Config | Client | Router | Job | Consumer | Module | Component
+- `type`: Controller | Service | Repository | Entity | Config | Client | Router | Job | Consumer | Module | Component | View
 - `layer`: entry | service | data | infra | external | job | event | frontend
 - `file`: relative path from source root
 - `package`: namespace / module path
@@ -125,6 +125,15 @@ coverage/  .nyc_output/  .pytest_cache/
 - `methods[]`: notable public method names
 - `injects[]`: injected dependency names
 - `confidence`: explicit | inferred | uncertain
+
+### Step 2.5 — Scan Frontend (if detected)
+
+If language pack has `frontendScan.enabled: true` AND `frontend/**/package.json` exists:
+1. Scan `frontend/src/views/` → one `View` component per `.vue` file
+2. Scan `frontend/src/components/` recursively → one `Component` per notable `.vue` file
+3. Scan `frontend/src/router/` → extract `path` + `component` pairs
+4. Infer domain from path: `views/OrderView.vue` → domain=`order`
+5. Add frontend layer components to `components[]`
 
 ### Step 3 — Infer Dependencies
 
@@ -219,17 +228,20 @@ When user wants to update an existing diagram without full rescan:
 |--------|------|------|
 | `json` | `docs/architecture/system-data.json` | Always (machine-readable source of truth) |
 | `html` | `docs/architecture/architecture.html` | Default |
-| `mermaid` | `docs/architecture/mermaid-flowchart.md` | Requested or `format=mermaid` |
-| `table` | `docs/architecture/component-table.md` | Requested or `format=table` |
 
-### Template Files (skill resources)
+### Template Files (skill resources — DO NOT put project data here)
 
 | File | Purpose |
 |------|---------|
-| `TEMPLATES/architecture.html` | HTML viewer template |
-| `TEMPLATES/system-data.json` | JSON data template (with placeholder systemData) |
+| `TEMPLATES/architecture.html` | HTML viewer template. **Must contain `{{SYSTEM_DATA}}` placeholder. DO NOT fill with project data.** |
+| `TEMPLATES/system-data.json` | JSON data schema template |
 
-**Note**: `architecture.html` in the output directory is generated from `TEMPLATES/architecture.html` by replacing the `systemData` placeholder with actual data. The HTML template in the skill repo contains a generic placeholder — it does NOT contain project-specific data.
+**Build step — how to generate output HTML:**
+1. Read `TEMPLATES/architecture.html` → contains `{{SYSTEM_DATA}}` placeholder
+2. Read `system-data.json` → contains actual component data
+3. Replace `{{SYSTEM_DATA}}` in template with the actual JSON string
+4. Save result as `docs/architecture/architecture.html`
+5. `TEMPLATES/architecture.html` remains unchanged for the next project
 
 ### Fallback Chain
 
@@ -237,8 +249,6 @@ If a template is missing:
 ```
 HTML template exists → architecture.html (interactive)
   ↓ template missing
-Mermaid code available → mermaid-flowchart.md + system-data.json
-  ↓ mermaid fails
 JSON only → system-data.json
   ↓ scan fails entirely
 Text summary (always succeeds)
@@ -316,13 +326,13 @@ Never return empty. Always produce at least a text summary.
 
 - ❌ **Hardcoded paths**: Never put project-specific paths in SKILL.md. All paths must be dynamically detected or parameterized.
 - ❌ **Incomplete directory scan**: Scanning only top-level `controller/` while subdirs exist. **Fix: Always Glob/ls every subdirectory recursively.**
-- ❌ **Missing sub-modules**: Ignoring `ai/`, `kg/`, `rag/`, `config/`, `listener/`, `task/`, `vector/` directories. **Fix: Check all non-standard directories.**
-- ❌ **Missing frontend**: Scanning backend only. **Fix: Always scan `frontend/` when it exists.**
+- ❌ **Missing sub-modules**: Ignoring `ai/`, `kg/`, `rag/`, `config/`, `listener/`, `task/`, `vector/`, `domain/event/` directories. **Fix: Check all non-standard directories.**
+- ❌ **Missing frontend**: Scanning backend only. **Fix: Always scan `frontend/` when it exists — check `src/views/` AND `src/components/` recursively.**
 - ❌ **Emitting without verification**: Outputting JSON without counting components. **Fix: `meta.nodeCount` must equal `components.length`.**
 - ❌ **Silent omission**: Component exists but absent from diagram without `warning`. **Fix: Emit warning if scan was partial.**
 - ❌ **Dangling references**: `routes[].componentId` references non-existent component. **Fix: Cross-check all IDs.**
 - ❌ **Aggregating without consent**: Grouping without user request. **Fix: Only aggregate when `nodeCount > 25`.**
-- ❌ **Embedding project data in template**: `architecture.html` in skill repo must use placeholder, never project-specific `systemData`.
+- ❌ **Embedding project data in template**: `TEMPLATES/architecture.html` must use `{{SYSTEM_DATA}}` placeholder, never project-specific `systemData`. **Fix: Keep template generic, build output by replacement.**
 
 ---
 
@@ -345,10 +355,10 @@ Never return empty. Always produce at least a text summary.
 
 | File | Purpose |
 |------|---------|
-| `LANGUAGES/java-spring.yaml` | Java Spring Boot detection + rules |
+| `LANGUAGES/java-spring.yaml` | Java Spring Boot detection + rules (includes `frontendScan` for Vue) |
 | `LANGUAGES/nodejs-express.yaml` | Node.js Express detection + rules |
 | `LANGUAGES/python-fastapi.yaml` | Python FastAPI detection + rules |
 | `LANGUAGES/go-stdlib.yaml` | Go stdlib/chi/Gin detection + rules |
 | `REFERENCE.md` | Schema definitions, color palette, aggregation rules, external service table |
-| `TEMPLATES/architecture.html` | HTML viewer template (generic, no project data) |
-| `TEMPLATES/system-data.json` | JSON data template |
+| `TEMPLATES/architecture.html` | HTML viewer template (`{{SYSTEM_DATA}}` placeholder — generic, no project data) |
+| `TEMPLATES/system-data.json` | JSON data schema template |

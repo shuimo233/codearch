@@ -626,34 +626,10 @@
 <script>
 
 // ╔════════════════════════════════════════════════════════════════════╗
-// ║  systemData placeholder — run CodeArch skill to generate the real   ║
-// ║  system-data.json, then architecture.html will be rebuilt from it.   ║
+// ║  TEMPLATE: Replace {{SYSTEM_DATA}} with actual system-data.json      ║
+// ║  content before saving this file as docs/architecture/architecture.html║
 // ╚════════════════════════════════════════════════════════════════════╝
-const systemData = {
-  "meta": {
-    "projectType": "java-spring",
-    "projectName": "your-project",
-    "generatedAt": "2026-06-08T10:50:46.219Z",
-    "sourceRoots": ["backend/src/main/java", "frontend/src"],
-    "scope": "full-project",
-    "moduleName": null,
-    "languagePack": "java-spring.yaml",
-    "outputFormat": "html",
-    "nodeCount": 0
-  },
-  "components": [],
-  "routes": [],
-  "dependencies": [],
-  "externalServices": [
-    {"name": "MySQL", "type": "database"},
-    {"name": "Redis", "type": "cache"},
-    {"name": "MongoDB", "type": "database"},
-    {"name": "Neo4j", "type": "graph"},
-    {"name": "Qdrant", "type": "vector"}
-  ],
-  "domains": [],
-  "warnings": ["systemData placeholder — run CodeArch skill to generate real data"]
-};
+const systemData = {{SYSTEM_DATA}};
 
 
 // Closing mermaidFlowContainer and canvas wrappers
@@ -1108,35 +1084,48 @@ function highlightRelatedNodes(nodeId) {
 function renderTree() {
     const c = document.getElementById('componentTree');
     if (!c) return;
-    
+
     const comps = getFilteredComponents();
     const layers = {};
-    
+
     comps.forEach(comp => {
         const l = comp.layer || 'other';
         if (!layers[l]) layers[l] = [];
         layers[l].push(comp);
     });
-    
-    const order = ['入口层', '业务层', 'MongoService层', '知识图谱层', '数据访问层', '数据模型', '配置', '数据传输', '外部服务', 'other'];
+
+    // Map English layer values to Chinese labels (order = display priority)
+    const layerLabel = {
+        'frontend': '前端 Vue SPA',
+        'entry': '入口层',
+        'service': '业务层',
+        'data': '数据访问层',
+        'infra': '基础设施层',
+        'external': '外部服务层',
+        'job': '定时任务',
+        'event': '事件层',
+        'other': '其他'
+    };
+    const layerOrder = ['frontend', 'entry', 'service', 'data', 'infra', 'external', 'job', 'event', 'other'];
     let html = '';
-    
-    order.forEach(l => {
+
+    layerOrder.forEach(l => {
         if (!layers[l]) return;
-        html += `<div class="layer-group"><div class="layer-title">${l}</div>`;
+        const label = layerLabel[l] || l;
+        html += `<div class="layer-group"><div class="layer-title">${label}</div>`;
         layers[l].forEach(comp => {
             const color = getColor(comp.type);
-            const badge = comp.routes && comp.routes.length > 0 
+            const badge = comp.routes && comp.routes.length > 0
                 ? ` <span class="badge">${comp.routes.length}</span>` : '';
             const domainTag = comp.domain ? `<span class="badge" style="background:${getDomainColor(comp.domain)}">${comp.domain}</span>` : '';
             html += `<div class="tree-node" onclick="showDetail('${comp.id}')" data-id="${comp.id}">
                 <span class="dot" style="background:${color}"></span>
-                <span class="label">${comp.id}</span>${badge}${domainTag}
+                <span class="label">${comp.name || comp.id}</span>${badge}${domainTag}
             </div>`;
         });
         html += '</div>';
     });
-    
+
     c.innerHTML = html || '<div class="empty-state"><div class="icon">&#9632;</div><div>暂无组件数据</div></div>';
 }
 
@@ -1144,34 +1133,34 @@ function getDomainColor(domain) {
     const colors = {
         'product': '#3498db',
         'order': '#27ae60',
-        'user': '#9b59b6',
-        'cart': '#f39c12',
+        'buyer': '#2980b9',
         'ai': '#e74c3c',
-        'payment': '#e67e22'
+        'system': '#7f8c8d',
+        'frontend': '#8e44ad',
+        'promotion': '#e67e22',
+        'seller': '#9b59b6',
+        'aftersale': '#009688',
+        'logistics': '#16a085',
+        'payment': '#c0392b'
     };
-    return colors[domain] || '#7f8c8d';
+    return colors[domain] || '#95a5a6';
 }
 
 function getColor(type) {
     const m = {
         Controller: '#3498db',
         Service: '#27ae60',
-        MongoService: '#16a085',
         Repository: '#f39c12',
         Entity: '#9b59b6',
-        KnowledgeGraph: '#e74c3c',
-        RAG: '#e67e22',
-        AI: '#e74c3c',
-        Component: '#1abc9c',
-        MongoDoc: '#9b59b6',
         Config: '#7f8c8d',
-        DTO: '#95a5a6',
-        Router: '#3498db',
-        Blueprint: '#3498db',
-        Middleware: '#f39c12',
-        Model: '#9b59b6',
-        Schema: '#95a5a6',
-        Utility: '#7f8c8d'
+        Client: '#e67e22',
+        Consumer: '#e74c3c',
+        Job: '#16a085',
+        Component: '#1abc9c',
+        Router: '#2980b9',
+        View: '#8e44ad',
+        Module: '#34495e',
+        Handler: '#3498db'
     };
     return m[type] || '#bdc3c7';
 }
