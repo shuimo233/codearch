@@ -1,0 +1,262 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "CodeArch System Data Schema",
+  "description": "Schema for system-data.json output from CodeArch skill",
+  "type": "object",
+  "required": ["meta", "components"],
+  "properties": {
+    "meta": {
+      "type": "object",
+      "required": ["projectType", "projectName", "generatedAt", "nodeCount"],
+      "properties": {
+        "projectType": {
+          "type": "string",
+          "enum": ["java-spring", "nodejs-express", "python-fastapi", "go-stdlib", "generic"],
+          "description": "Detected project type/language pack"
+        },
+        "projectName": {
+          "type": "string",
+          "description": "Project name extracted from pom.xml, package.json, etc."
+        },
+        "generatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO 8601 timestamp when diagram was generated"
+        },
+        "sourceRoots": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Absolute or relative paths to source roots"
+        },
+        "scope": {
+          "type": "string",
+          "enum": ["full-project", "module-only"],
+          "default": "full-project"
+        },
+        "moduleName": {
+          "type": ["string", "null"],
+          "description": "Module name when scope=module-only"
+        },
+        "languagePack": {
+          "type": "string",
+          "description": "Language pack file used (e.g., java-spring.yaml)"
+        },
+        "outputFormat": {
+          "type": "string",
+          "enum": ["html", "json", "mermaid", "table"],
+          "default": "html"
+        },
+        "nodeCount": {
+          "type": "integer",
+          "description": "Total number of components in diagram (must equal components.length)"
+        },
+        "incremental": {
+          "type": "boolean",
+          "default": false,
+          "description": "Whether this was an incremental update"
+        },
+        "previousVersion": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp of previous generation (incremental mode only)"
+        }
+      }
+    },
+    "components": {
+      "type": "array",
+      "description": "All scanned components",
+      "items": {
+        "$ref": "#/definitions/Component"
+      }
+    },
+    "dependencies": {
+      "type": "array",
+      "description": "Component-to-component dependencies",
+      "items": {
+        "$ref": "#/definitions/Dependency"
+      }
+    },
+    "externalServices": {
+      "type": "array",
+      "description": "External services, databases, and APIs detected",
+      "items": {
+        "$ref": "#/definitions/ExternalService"
+      }
+    },
+    "domains": {
+      "type": "array",
+      "description": "Business domains with their component IDs",
+      "items": {
+        "$ref": "#/definitions/Domain"
+      }
+    },
+    "warnings": {
+      "type": "array",
+      "description": "Warnings about partial scans, uncertain inferences, or architecture smells",
+      "items": { "type": "string" }
+    },
+    "metrics": {
+      "type": "object",
+      "description": "Optional quality and complexity metrics",
+      "properties": {
+        "avgComponentComplexity": { "type": "number" },
+        "maxDepth": { "type": "integer" },
+        "cyclomaticComplexity": { "type": "number" },
+        "architectureSmells": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "type": { "type": "string" },
+              "severity": { "type": "string", "enum": ["info", "warning", "error"] },
+              "description": { "type": "string" },
+              "components": { "type": "array", "items": { "type": "string" } }
+            }
+          }
+        }
+      }
+    }
+  },
+  "definitions": {
+    "Component": {
+      "type": "object",
+      "required": ["id", "name", "type", "layer"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[A-Z_][A-Z0-9_]*$",
+          "description": "Unique identifier (e.g., C_ORDER, S_PRODUCT)"
+        },
+        "name": {
+          "type": "string",
+          "description": "Display name (e.g., OrderController, ProductsService)"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "Controller", "Service", "Repository", "Entity",
+            "Router", "Handler", "Config", "Client",
+            "Job", "Consumer", "Module", "Component", "View"
+          ]
+        },
+        "layer": {
+          "type": "string",
+          "enum": ["entry", "service", "data", "infra", "external", "job", "event", "frontend"]
+        },
+        "domain": {
+          "type": ["string", "null"],
+          "description": "Business domain (e.g., order, product, ai)"
+        },
+        "file": {
+          "type": ["string", "null"],
+          "description": "Relative path from source root"
+        },
+        "package": {
+          "type": ["string", "null"],
+          "description": "Namespace/module path"
+        },
+        "routes": {
+          "type": "array",
+          "description": "HTTP routes (entry layer only)",
+          "items": {
+            "type": "object",
+            "required": ["method", "path"],
+            "properties": {
+              "method": {
+                "type": "string",
+                "enum": ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"]
+              },
+              "path": { "type": "string" },
+              "summary": { "type": ["string", "null"] },
+              "description": { "type": ["string", "null"] }
+            }
+          }
+        },
+        "methods": {
+          "type": "array",
+          "description": "Notable public method names",
+          "items": { "type": "string" }
+        },
+        "injects": {
+          "type": "array",
+          "description": "Injected dependency IDs (field or constructor)",
+          "items": { "type": "string" }
+        },
+        "confidence": {
+          "type": "string",
+          "enum": ["explicit", "inferred", "uncertain"],
+          "default": "explicit"
+        },
+        "criticality": {
+          "type": "string",
+          "enum": ["critical", "high", "normal", "low"],
+          "default": "normal"
+        },
+        "description": {
+          "type": ["string", "null"],
+          "description": "Auto-generated or LLM-provided description"
+        }
+      }
+    },
+    "Dependency": {
+      "type": "object",
+      "required": ["from", "to", "type", "confidence"],
+      "properties": {
+        "from": { "type": "string", "description": "Source component ID" },
+        "to": { "type": "string", "description": "Target component ID or external service name" },
+        "type": {
+          "type": "string",
+          "enum": ["calls", "injects", "uses", "queries", "stores", "subscribes", "publishes"]
+        },
+        "confidence": {
+          "type": "string",
+          "enum": ["explicit", "inferred", "uncertain"]
+        },
+        "description": {
+          "type": ["string", "null"],
+          "description": "How this dependency was detected"
+        }
+      }
+    },
+    "ExternalService": {
+      "type": "object",
+      "required": ["name", "type"],
+      "properties": {
+        "name": { "type": "string", "description": "Service name (e.g., MySQL, Redis, S3)" },
+        "type": {
+          "type": "string",
+          "enum": ["database", "cache", "queue", "search", "vector", "graph", "storage", "api", "email", "auth", "payment"]
+        },
+        "configKey": {
+          "type": ["string", "null"],
+          "description": "Configuration key where this was detected (e.g., spring.datasource.url)"
+        },
+        "confidence": {
+          "type": "string",
+          "enum": ["explicit", "inferred", "uncertain"],
+          "default": "explicit"
+        },
+        "connectionString": {
+          "type": ["string", "null"],
+          "description": "Sanitized connection string (passwords redacted)"
+        }
+      }
+    },
+    "Domain": {
+      "type": "object",
+      "required": ["name", "componentIds"],
+      "properties": {
+        "name": { "type": "string", "description": "Domain name (e.g., order, product, ai)" },
+        "componentIds": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Component IDs belonging to this domain"
+        },
+        "description": {
+          "type": ["string", "null"],
+          "description": "Domain purpose"
+        }
+      }
+    }
+  }
+}

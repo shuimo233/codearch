@@ -152,20 +152,33 @@ If you cannot find evidence for a likely relationship, either skip it or mark `u
 
 Scan for: config files, environment variables, SDK imports, connection strings.
 
-Detectable categories:
-- **Databases**: MySQL, PostgreSQL, MongoDB
-- **Cache**: Redis, Memcached
-- **Graph**: Neo4j
-- **Vector**: Qdrant, Chroma, Weaviate, Pinecone
-- **Queue**: Kafka, RabbitMQ, SQS
-- **Search**: Elasticsearch, OpenSearch
-- **Storage**: S3, MinIO, local filesystem
-- **LLM APIs**: DeepSeek, OpenAI, Anthropic, 通义千问, 豆包, Ollama
-- **Payments**: 支付宝, Stripe, PayPal
-- **Email**: SMTP, SendGrid, SES
-- **Auth**: Auth0, Firebase, JWT
+**Standard detection patterns (use configKey + regex):**
 
-Emit `confidence` (explicit/inferred) and `configKey`.
+|| Service | Config Keys | Import Patterns |
+|---------|-------------|-----------------|
+| MySQL | `spring.datasource.url`, `mysql://` | `mysql-connector-java` |
+| PostgreSQL | `spring.datasource.url`, `postgresql://` | `postgresql` driver |
+| MongoDB | `spring.data.mongodb.uri` | `mongodb` driver |
+| Redis | `spring.data.redis.host` | `spring-boot-starter-data-redis` |
+| Neo4j | `spring.neo4j.uri` | `neo4j` driver |
+| Elasticsearch | `elasticsearch.url`, `opensearch` | `elasticsearch` client |
+| Qdrant | `qdrant.*`, `QDRANT_HOST` | `qdrant-client` |
+| Weaviate | `WEAVIATE_*` | `weaviate-client` |
+| Kafka | `spring.kafka.bootstrap-servers` | `spring-kafka` |
+| RabbitMQ | `spring.rabbitmq.*` | `amqplib` |
+| S3/MinIO | `aws.s3.*`, `minio.*` | `@aws-sdk/client-s3` |
+| DeepSeek | `DEEPSEEK_API_KEY` | `openai` package |
+| 通义千问 | `DASHSCOPE_API_KEY` | `dashscope` package |
+| 支付宝 | `ALIPAY_*` | `alipay` SDK |
+| Stripe | `STRIPE_API_KEY` | `stripe` package |
+| SMTP | `spring.mail.*` | `spring-boot-starter-mail` |
+| JWT/Auth | `jwt.*`, `security.*` | `jjwt`, `spring-security` |
+
+**Important rules:**
+1. External service `name` should use standard names: `MySQL`, `Redis`, `MongoDB`, `Neo4j`, `Qdrant`, `S3`, `DeepSeek`, `通义千问`
+2. **Never use non-standard names** like "本地文件存储" — use `S3`, `MinIO`, or `LocalStorage`
+3. Always emit `configKey` and `confidence`
+4. For detected but unconfirmed services, use `confidence: inferred`
 
 ### Step 5 — Aggregate (if needed)
 
@@ -348,6 +361,39 @@ Never return empty. Always produce at least a text summary.
 | Component count mismatch | Add to `warnings[]`, note which type under-counted |
 | Network/external service detection | Mark as `inferred`, list the pattern that suggested it |
 | Monorepo detection uncertain | Scan all potential roots, emit `warnings[]` |
+
+---
+
+## 9.1 Architecture Smells Detection (Advanced)
+
+**Detect and warn about these common architecture issues:**
+
+| Smell Type | Detection | Severity |
+|------------|-----------|----------|
+| **Controller directly accessing Repository** | `@RestController` uses `@Autowired Repository` | warning |
+| **Circular dependency** | A → B → C → A in dependencies | error |
+| **God Component** | Single component with > 20 methods or > 500 lines | warning |
+| **Missing abstraction** | Service contains no interfaces | info |
+| **Data access in entry layer** | Controller/Handler directly queries database | warning |
+| **Hardcoded configuration** | No `@ConfigurationProperties` or external config | info |
+| **Synchronous external calls** | No async/future pattern for external APIs | info |
+
+**Emit in `metrics.architectureSmells`:**
+
+```json
+{
+  "metrics": {
+    "architectureSmells": [
+      {
+        "type": "controller-direct-repo-access",
+        "severity": "warning",
+        "description": "ProductAdminController directly injects ProductsRepository",
+        "components": ["C_PRODUCT_ADMIN", "R_PRODUCT"]
+      }
+    ]
+  }
+}
+```
 
 ---
 

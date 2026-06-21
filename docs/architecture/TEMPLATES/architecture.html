@@ -1169,8 +1169,21 @@ function getColor(type) {
 function renderEndpoints() {
     const c = document.getElementById('endpointList');
     if (!c) return;
-    
-    const routes = systemData.routes || [];
+
+    // Extract routes from components (routes are stored in component.routes, not systemData.routes)
+    const routes = [];
+    (systemData.components || []).forEach(comp => {
+        if (comp.routes && comp.routes.length > 0) {
+            comp.routes.forEach(r => {
+                routes.push({
+                    ...r,
+                    componentId: comp.id,
+                    componentName: comp.name
+                });
+            });
+        }
+    });
+
     if (routes.length === 0) {
         c.innerHTML = '<div class="empty-state"><div class="icon">&#9632;</div><div>暂无路由数据</div></div>';
         return;
@@ -1240,7 +1253,8 @@ function showDetail(nodeId) {
     if (comp.dataFlow) {
         html += `<div class="section"><h4>Data Flow</h4><div style="font-size:11px;color:var(--text-sec);line-height:1.6;">${comp.dataFlow}</div></div>`;
     }
-    
+
+    html += `<button class="btn" style="margin:10px 14px;" onclick="copyForAI()">Copy for AI</button>`;
     document.getElementById('detailPanel').innerHTML = html;
     switchTab('right', 'detail');
     renderTrace(nodeId, comp);

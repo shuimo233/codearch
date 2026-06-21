@@ -27,8 +27,20 @@ directories:
   service/:            { type: Service, layer: service }
   "service/impl/":     { type: Service, layer: service }
   "service/**/":        { type: Service, layer: service }
+  "service/mongo/":   { type: Service, layer: service }
+  "service/notification/": { type: Service, layer: service }
+  "service/ai/":      { type: Service, layer: service }
+  "service/buyer/":   { type: Service, layer: service }
+  "service/order/":    { type: Service, layer: service }
+  "service/product/": { type: Service, layer: service }
+  "service/seller/":  { type: Service, layer: service }
+  "service/system/":  { type: Service, layer: service }
+  "service/logistics/": { type: Service, layer: service }
+  "service/promotion/": { type: Service, layer: service }
+  "service/aftersale/": { type: Service, layer: service }
   repository/:         { type: Repository, layer: data }
   "repository/**/":    { type: Repository, layer: data }
+  "repository/mongo/": { type: Repository, layer: data }
   entity/:             { type: Entity, layer: data }
   "entity/**/":        { type: Entity, layer: data }
   model/:              { type: Entity, layer: data }
@@ -37,10 +49,14 @@ directories:
   "dto/**/":          { type: Entity, layer: data }
   config/:             { type: Config, layer: infra }
   "config/**/":        { type: Config, layer: infra }
+  security/:           { type: Config, layer: infra }
+  "security/**/":      { type: Config, layer: infra }
   listener/:           { type: Consumer, layer: event }
   "listener/**/":      { type: Consumer, layer: event }
+  "domain/event/":     { type: Consumer, layer: event }
+  "domain/event/**/":  { type: Consumer, layer: event }
   task/:               { type: Job, layer: job }
-  "task/**/":         { type: Job, layer: job }
+  "task/**/":          { type: Job, layer: job }
   client/:             { type: Client, layer: external }
   gateway/:            { type: Client, layer: external }
   "payment/gateway/":  { type: Client, layer: external }
@@ -48,10 +64,12 @@ directories:
   "kg/**/":            { type: Service, layer: service }
   rag/:                { type: Service, layer: service }
   "rag/**/":           { type: Service, layer: service }
-  "domain/event/":     { type: Consumer, layer: event }
-  "domain/event/**/":  { type: Consumer, layer: event }
-  vector/:             { type: Client, layer: infra }
-  "vector/**/":       { type: Client, layer: infra }
+  vector/:             { type: Service, layer: service }
+  "vector/**/":        { type: Service, layer: service }
+  mapper/:             { type: Entity, layer: data }
+  "mapper/**/":        { type: Entity, layer: data }
+  enums/:              { type: Entity, layer: data }
+  "enums/**/":         { type: Entity, layer: data }
 
 # Frontend scanning (Vue 3 SPA — cross-framework)
 frontendScan:
@@ -225,10 +243,10 @@ externalServicePatterns:
     type: "explicit"
   - configKey: "ai.rag.vector-store"
     serviceType: "vector"
-    pattern: "qdrant|chroma|weaviate|pincone"
+    pattern: "qdrant|chroma|weaviate|pinecone"
     type: "explicit"
   - configKey: "aws"
-    serviceType: "object-storage"
+    serviceType: "storage"
     pattern: "s3|minio"
     type: "explicit"
   - configKey: "spring.mail"
@@ -241,21 +259,38 @@ externalServicePatterns:
     configKey: "alipay.app-id"
     type: "explicit"
   - import: "org.deepseek"
-    serviceType: "llm-api"
+    serviceType: "api"
     configKey: "ai.deepseek.api-key"
     type: "explicit"
   - import: "com.openai"
-    serviceType: "llm-api"
+    serviceType: "api"
     configKey: "openai.api-key"
     type: "explicit"
+  - import: "com.tencent"
+    serviceType: "api"
+    configKey: "qcloud.api-key"
+    type: "explicit"
+  - import: "dashscope"
+    serviceType: "api"
+    configKey: "dashscope.api-key"
+    type: "explicit"
+  # Storage patterns
+  - configKey: "file.upload-dir"
+    serviceType: "storage"
+    pattern: "upload|storage|file"
+    type: "explicit"
+    description: "Local file storage"
 
 # Component ID prefix mapping
 idPrefix:
-  Controller: "E_"
+  Controller: "C_"
   Service:    "S_"
   Repository: "R_"
   Entity:     "D_"
-  Config:     "C_"
+  Config:     "CFG_"
   Client:     "X_"
-  Consumer:   "E_"
-  Job:        "E_"
+  Consumer:   "L_"
+  Job:        "JOB_"
+  View:       "V_"
+  Component:  "CMP_"
+  Router:     "R_"
