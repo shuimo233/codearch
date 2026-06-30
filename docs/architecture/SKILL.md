@@ -277,16 +277,29 @@ Examples:
 - "PaymentGateway 超时配置在 yml 中而非代码常量"
 - "LegacyUtil.deprecatedMethod() 无调用者"
 
-### Step 8 — Three-Output Rendering (NEW)
+### Step 8 — Three-Output Rendering
 
-Produce all three output files from the same `system-data.json`:
+Produce all output files from the same `system-data.json`.
 
-#### 8.1 architecture.html
+#### 8.1 architecture.svg + architecture.html (Python-based)
 
-1. Read `TEMPLATES/architecture.html` → contains `{{SYSTEM_DATA}}` placeholder
-2. Read the generated `system-data.json`
-3. Replace `{{SYSTEM_DATA}}` with the actual JSON string
-4. Write to `docs/architecture/architecture.html`
+Use the bundled Python script for robust SVG rendering:
+
+```bash
+python scripts/generate-arch.py docs/architecture/system-data.json docs/architecture/architecture.svg
+```
+
+This generates:
+- `architecture.svg` — standalone vector architecture diagram (zero dependencies)
+- `architecture.html` — interactive HTML wrapper with zoom + hover tooltips
+
+**Why Python SVG instead of HTML template:**
+- Deterministic layered layout (entry → service → data → infra → external)
+- No layout engine dependency (Graphviz, Mermaid, D2)
+- SVG renders identically in all browsers
+- HTML wrapper adds interactivity (zoom, tooltip, highlight)
+
+**Fallback**: If Python is unavailable, use `TEMPLATES/architecture.html` (pure HTML/CSS) as before.
 
 #### 8.2 graph.json (AI-optimized)
 
@@ -294,67 +307,22 @@ Transform `system-data.json` into compact format:
 
 ```json
 {
-  "_v": 2,
-  "_project": "<projectName>",
-  "_lang": "<languagePack>",
-  "_brief": "<nodeCount> nodes, <edgeCount> edges, <domainCount> domains. search_graph / trace_path to explore.",
-
-  "n": [
-    { "i":"<id>", "l":"<type>", "n":"<name>", "f":"<file>",
-      "e":["<route>"], "d":"<domain>" }
-  ],
-
-  "e": [
-    { "f":"<from_id>", "t":"<to_id>", "y":"<type>" }
-  ],
-
-  "d": [
-    { "n":"<domain_name>", "c":["<component_ids>"], "x":["<dep_domains>"] }
-  ],
-
-  "x": [
-    { "n":"<service_name>", "t":"<type>", "k":"<configKey>" }
-  ],
-
-  "h": [
-    { "f":"<component_id>", "in":<count>, "out":<count>, "risk":"<high|medium>", "reason":"..." }
-  ],
-
-  "z": [
-    { "n":"<name>", "f":"<file>", "reason":"zero callers / deprecated" }
-  ]
+  "_v": 2, "_project": "<name>", "_lang": "<lang>",
+  "_brief": "<nodes> nodes, <edges> edges, <domains> domains.",
+  "n": [{ "i":"<id>", "l":"<type>", "n":"<name>", "f":"<file>", "e":["<route>"], "d":"<domain>" }],
+  "e": [{ "f":"<from>", "t":"<to>", "y":"<type>" }],
+  "d": [{ "n":"<domain>", "c":["<ids>"], "x":["<deps>"] }],
+  "x": [{ "n":"<service>", "t":"<type>", "k":"<configKey>" }],
+  "h": [{ "f":"<id>", "in":0, "out":0, "risk":"high", "reason":"..." }]
 }
 ```
-
-**Key compression rules:**
-- Node keys: `i` (id), `l` (label/type), `n` (name), `f` (file), `e` (exports/routes), `c` (calls), `d` (domain), `p` (params), `r` (returns)
-- Edge keys: `f` (from), `t` (to), `y` (type)
-- Domain keys: `n` (name), `c` (components), `x` (depends_on domains)
-- External keys: `n` (name), `t` (type), `k` (configKey)
-- Hotspot keys: `f` (component), `in` (inbound), `out` (outbound), `risk`
-- Dead code: `z` array with `n` (name), `f` (file), `reason`
-- Omit fields with null/empty values entirely
-- Only include `h` (hotspots) and `z` (dead_code) if found
 
 **Token target**: < 2,000 tokens for a 50-component project.
 
 #### 8.3 README.onboard.md
 
 1. Read `TEMPLATES/README.onboard.md`
-2. Fill placeholders using `system-data.json`:
-   - `{{PROJECT_NAME}}` → `meta.projectName`
-   - `{{GENERATED_AT}}` → `meta.generatedAt`
-   - `{{NODE_COUNT}}` → `meta.nodeCount`
-   - `{{DOMAIN_COUNT}}` → `domains.length`
-   - `{{ROUTE_COUNT}}` → count all routes across all components
-   - `{{PROJECT_SUMMARY}}` → generated summary from Step 7.1
-   - `{{TECH_STACK}}` → inferred stack, comma-separated
-   - `{{WHERE_TO_START}}` → Top-5 table rows from Step 7.2
-   - `{{MODULES}}` → domain descriptions from Step 7.3
-   - `{{KEY_FLOWS}}` → sequence diagrams from Step 7.4
-   - `{{GOTCHAS}}` → from Step 7.6 + `metrics.architectureSmells`
-   - `{{CONVENTIONS}}` → from Step 7.5
-   - Empty sections: use `{{#NO_*}}` fallback blocks
+2. Fill placeholders using `system-data.json` onboarding data
 3. Write to `docs/architecture/README.onboard.md`
 
 ---

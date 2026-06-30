@@ -2,7 +2,7 @@
 
 > Architecture diagram generation skill for AI coding agents (Cursor, Claude Code, etc).
 
-从源码自动生成架构文档。**零外部依赖**，一次扫描产出四份固定文档：人看交互式架构图，Agent 看紧凑知识图谱。
+从源码自动生成架构文档。**零外部依赖** — Python 脚本生成高质量 SVG 架构图 + 交互式 HTML，无需 CDN/Graphviz/Mermaid，一次扫描产出四份固定文档。
 
 支持 Java Spring Boot、Node.js/Express、Python/FastAPI、Go。
 
@@ -69,6 +69,9 @@ architecture diagram
 ```
 codearch/
 ├── SKILL.md                         ← Agent 入口（触发条件 + 流程摘要）
+├── README.md                        ← 安装指南
+├── scripts/
+│   └── generate-arch.py             ← Python SVG 架构图生成器
 └── docs/architecture/
     ├── SKILL.md                     ← 完整 8 步执行流程
     ├── REFERENCE.md                 ← 语言包规则 + schema 参考
@@ -79,7 +82,7 @@ codearch/
     │   ├── python-fastapi.yaml      # Python / FastAPI
     │   └── go-stdlib.yaml           # Go / stdlib
     └── TEMPLATES/                   ← 输出模板
-        ├── architecture.html        # 交互式架构图（纯 HTML/CSS）
+        ├── architecture.html        # 交互式架构图（纯 HTML/CSS 回退方案）
         ├── system-data.json         # 统一数据源 schema（V2）
         └── README.onboard.md        # 人类导航文档模板
 ```
@@ -98,7 +101,8 @@ codearch/
 
 | 文件 | 面向 | 说明 |
 |------|------|------|
-| `architecture.html` | 人类 | 交互式架构图（零依赖纯 HTML/CSS），缩放/平移/过滤/高亮/API 测试 |
+| `architecture.svg` | 人类 | 高质量矢量架构图（Python 生成），分层布局 + 颜色编码 + 依赖连线 |
+| `architecture.html` | 人类 | 交互式架构图（SVG 内嵌），缩放/平移/悬停提示 |
 | `README.onboard.md` | 人类 | 叙事架构导览——从哪开始读、有什么坑 |
 | `graph.json` | AI Agent | 紧凑知识图谱（~1200 tokens），可快速注入上下文 |
 | `system-data.json` | 工具 | 统一数据源，包含 onboarding/impact 数据 |
