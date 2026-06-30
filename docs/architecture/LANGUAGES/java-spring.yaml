@@ -25,22 +25,9 @@ directories:
   controller/*/:       { type: Controller, layer: entry }
   "controller/**/":    { type: Controller, layer: entry }
   service/:            { type: Service, layer: service }
-  "service/impl/":     { type: Service, layer: service }
   "service/**/":        { type: Service, layer: service }
-  "service/mongo/":   { type: Service, layer: service }
-  "service/notification/": { type: Service, layer: service }
-  "service/ai/":      { type: Service, layer: service }
-  "service/buyer/":   { type: Service, layer: service }
-  "service/order/":    { type: Service, layer: service }
-  "service/product/": { type: Service, layer: service }
-  "service/seller/":  { type: Service, layer: service }
-  "service/system/":  { type: Service, layer: service }
-  "service/logistics/": { type: Service, layer: service }
-  "service/promotion/": { type: Service, layer: service }
-  "service/aftersale/": { type: Service, layer: service }
   repository/:         { type: Repository, layer: data }
   "repository/**/":    { type: Repository, layer: data }
-  "repository/mongo/": { type: Repository, layer: data }
   entity/:             { type: Entity, layer: data }
   "entity/**/":        { type: Entity, layer: data }
   model/:              { type: Entity, layer: data }
@@ -293,4 +280,4 @@ idPrefix:
   Job:        "JOB_"
   View:       "V_"
   Component:  "CMP_"
-  Router:     "R_"
+  Router:     "RTR_"

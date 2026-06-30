@@ -25,22 +25,10 @@ const OUTPUT_JSON = process.argv.includes('--json');
 let server;
 let browser;
 
-function injectMermaid(htmlContent) {
-    const mermaidScript = `<script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.0/dist/mermaid.min.js"></script>`;
-    return htmlContent.replace(
-        /<script src="mermaid\.min\.js"[^>]*><\/script>/,
-        mermaidScript
-    ).replace(
-        /<script src="https:\/\/cdn\.jsdelivr\.net\/npm\/mermaid[^>]*><\/script>/,
-        mermaidScript
-    );
-}
-
 function startServer(htmlPath) {
     return new Promise((resolve, reject) => {
         let htmlContent = fs.readFileSync(htmlPath, 'utf-8');
-        htmlContent = injectMermaid(htmlContent);
-        
+
         server = http.createServer((req, res) => {
             res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
             res.end(htmlContent);
@@ -80,13 +68,8 @@ async function testPageLoads(page) {
     await page.goto(`http://localhost:${PORT}`);
     await page.waitForLoadState('domcontentloaded');
     
-    // Wait for mermaid
-    await page.waitForFunction(() => typeof mermaid !== 'undefined', { timeout: 15000 }).catch(() => {
-        log('Mermaid not defined', true);
-    });
-    
     // Wait for render
-    await page.waitForTimeout(4000);
+    await page.waitForTimeout(2000);
     
     return { passed: errors.length === 0, errors };
 }
@@ -124,24 +107,19 @@ async function testComponentTree(page) {
     }
 }
 
-async function testMermaidDiagram(page) {
+async function testArchView(page) {
     try {
-        let svg = null;
-        for (let i = 0; i < 5; i++) {
-            await page.waitForTimeout(1000);
-            svg = await page.$('#mermaidContainer svg');
-            if (svg) break;
-        }
-        
-        if (!svg) return { passed: false, error: 'SVG not rendered' };
-        
-        const nodes = await page.$$('#mermaidContainer svg .node');
-        const edges = await page.$$('#mermaidContainer svg .edgePath');
-        
-        return { 
-            passed: nodes.length > 0, 
+        // Check layer view has arch-nodes
+        const nodes = await page.$$('#layerView .arch-node');
+        const layers = await page.$$('#layerView .arch-layer');
+        // Check SVG connections overlay exists
+        const svg = await page.$('#connectionsSVG');
+
+        return {
+            passed: nodes.length > 0 && layers.length > 0 && !!svg,
             nodeCount: nodes.length,
-            edgeCount: edges.length
+            layerCount: layers.length,
+            hasConnections: !!svg
         };
     } catch (e) {
         return { passed: false, error: e.message };
@@ -299,7 +277,7 @@ async function runTests(htmlPath) {
             { name: 'system_data_integrity', fn: testSystemDataIntegrity },
             { name: 'project_info', fn: testProjectInfo },
             { name: 'component_tree', fn: testComponentTree },
-            { name: 'mermaid_diagram', fn: testMermaidDiagram },
+            { name: 'arch_view', fn: testArchView },
             { name: 'domain_filter', fn: testDomainFilter },
             { name: 'component_click', fn: testComponentClick },
             { name: 'theme_toggle', fn: testThemeToggle },

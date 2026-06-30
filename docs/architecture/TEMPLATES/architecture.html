@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CodeArch — Architecture Diagram</title>
-    <script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.0/dist/mermaid.min.js"></script>
     <style>
         :root, :root[data-theme="light"] {
             --bg: #f0f4f8;
@@ -22,7 +21,7 @@
             --danger: #e74c3c;
             --shadow: 0 1px 3px rgba(0,0,0,0.08);
             --shadow-lg: 0 4px 12px rgba(0,0,0,0.1);
-            --mermaid-bg: #f0f4f8;
+            --canvas-bg: #f0f4f8;
             --scrollbar: #dde3ec;
             --hover-bg: #eaf4fb;
         }
@@ -43,7 +42,7 @@
             --danger: #e74c3c;
             --shadow: 0 1px 3px rgba(0,0,0,0.3);
             --shadow-lg: 0 4px 12px rgba(0,0,0,0.4);
-            --mermaid-bg: #1a1a2e;
+            --canvas-bg: #1a1a2e;
             --scrollbar: #0f3460;
             --hover-bg: #1a3a5c;
         }
@@ -252,7 +251,8 @@
             justify-content: center;
             transform-origin: 50% 50%;
         }
-        .canvas-inner svg { max-width: none !important; }
+        .canvas-inner svg { max-width: none !important; max-height: none !important; }
+        .canvas-inner .arch-node { transition: transform 0.18s, border-color 0.18s, box-shadow 0.18s, opacity 0.25s, filter 0.25s; }
         .canvas-hint {
             position: absolute;
             bottom: 10px; left: 50%;
@@ -268,19 +268,168 @@
         }
         :root[data-theme="dark"] .canvas-hint { background: rgba(22,33,62,0.9); }
 
-        .mermaid svg { background: var(--mermaid-bg) !important; }
-        .canvas-inner svg .node:hover { cursor: pointer; filter: drop-shadow(0 2px 4px rgba(52,152,219,0.3)); }
-        .canvas-inner svg .node.highlighted rect,
-        .canvas-inner svg .node.highlighted polygon,
-        .canvas-inner svg .node.highlighted circle {
-            stroke: var(--accent) !important;
-            stroke-width: 2px !important;
-            filter: drop-shadow(0 0 6px rgba(52,152,219,0.5));
+        /* ── Architecture Canvas (Pure HTML/CSS) ── */
+        .arch-view {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            padding: 20px;
+            min-width: max-content;
+            min-height: max-content;
         }
-        .canvas-inner.dim-mode svg .node { opacity: 0.2 !important; transition: opacity 0.2s; }
-        .canvas-inner.dim-mode svg .edgePath { opacity: 0.08 !important; transition: opacity 0.2s; }
-        .canvas-inner.dim-mode svg .node.highlighted { opacity: 1 !important; }
-        .canvas-inner.dim-mode svg .edgePath.highlighted { opacity: 1 !important; }
+        .arch-layer {
+            background: var(--surface);
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            overflow: hidden;
+            box-shadow: var(--shadow);
+        }
+        .arch-layer-header {
+            padding: 8px 16px;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            border-bottom: 1px solid var(--border);
+        }
+        .arch-layer-header.entry  { background: #d6eaf8; color: #1a5276; }
+        .arch-layer-header.service { background: #d5f5e3; color: #1e8449; }
+        .arch-layer-header.data { background: #fef9e7; color: #9a7d0a; }
+        .arch-layer-header.infra { background: #fdebd0; color: #6e2f1a; }
+        .arch-layer-header.external { background: #fdebd0; color: #6e2f1a; }
+        .arch-layer-header.frontend { background: #f5eef8; color: #4a235a; }
+        .arch-layer-header.job { background: #e8f8f5; color: #0e6251; }
+        .arch-layer-header.event { background: #fdedec; color: #7b241c; }
+        :root[data-theme="dark"] .arch-layer-header.entry  { background: #1a3a5c; color: #85c1e9; }
+        :root[data-theme="dark"] .arch-layer-header.service { background: #1a3c2e; color: #82e0aa; }
+        :root[data-theme="dark"] .arch-layer-header.data { background: #3e3520; color: #f9e79f; }
+        :root[data-theme="dark"] .arch-layer-header.infra { background: #3e2720; color: #f5cba7; }
+        :root[data-theme="dark"] .arch-layer-header.external { background: #3e2720; color: #f5cba7; }
+        :root[data-theme="dark"] .arch-layer-header.frontend { background: #2c1a3a; color: #d7bde2; }
+        :root[data-theme="dark"] .arch-layer-header.job { background: #1a3c30; color: #a3e4d7; }
+        :root[data-theme="dark"] .arch-layer-header.event { background: #3e1a1a; color: #f5b7b1; }
+        .arch-layer-body {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            padding: 10px 12px;
+        }
+        .arch-node {
+            background: var(--surface);
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            padding: 8px 12px;
+            cursor: pointer;
+            transition: all 0.18s;
+            min-width: 100px;
+            max-width: 200px;
+            flex-shrink: 0;
+            position: relative;
+        }
+        .arch-node:hover {
+            border-color: var(--accent);
+            box-shadow: 0 2px 10px rgba(52,152,219,0.2);
+            transform: translateY(-1px);
+        }
+        .arch-node.selected {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 2px rgba(52,152,219,0.3);
+            background: var(--accent-bg);
+        }
+        .arch-node.highlighted {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 2px rgba(52,152,219,0.3);
+            opacity: 1 !important;
+            z-index: 2;
+        }
+        .arch-node.dim { opacity: 0.15; filter: grayscale(0.6); transition: all 0.25s; }
+        .arch-node .node-type-tag {
+            font-size: 9px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+            color: var(--text-dim);
+            margin-bottom: 3px;
+        }
+        .arch-node .node-name {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text);
+            margin-bottom: 2px;
+            line-height: 1.3;
+        }
+        .arch-node .node-meta {
+            display: flex;
+            gap: 4px;
+            flex-wrap: wrap;
+            margin-top: 4px;
+        }
+        .arch-node .node-badge {
+            font-size: 9px;
+            padding: 1px 6px;
+            border-radius: 8px;
+            font-weight: 600;
+            background: var(--bg);
+            color: var(--text-sec);
+            border: 1px solid var(--border);
+        }
+        .arch-node .node-badge.routes { background: var(--accent-bg); color: var(--accent); border-color: var(--accent); }
+        .arch-node .node-badge.domain { background: #e8f8f5; color: #0e6251; border-color: #1abc9c; }
+
+        /* Flow View */
+        .arch-flow {
+            display: flex;
+            gap: 20px;
+            padding: 20px;
+            align-items: flex-start;
+            min-width: max-content;
+        }
+        .arch-flow-col {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            min-width: 130px;
+        }
+        .arch-flow-col-header {
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            padding: 6px 12px;
+            border-radius: 6px;
+            text-align: center;
+        }
+        .arch-flow-col-header.entry { background: #d6eaf8; color: #1a5276; }
+        .arch-flow-col-header.service { background: #d5f5e3; color: #1e8449; }
+        .arch-flow-col-header.data { background: #fef9e7; color: #9a7d0a; }
+        .arch-flow-col-header.external { background: #fdebd0; color: #6e2f1a; }
+        :root[data-theme="dark"] .arch-flow-col-header.entry { background: #1a3a5c; color: #85c1e9; }
+        :root[data-theme="dark"] .arch-flow-col-header.service { background: #1a3c2e; color: #82e0aa; }
+        :root[data-theme="dark"] .arch-flow-col-header.data { background: #3e3520; color: #f9e79f; }
+        :root[data-theme="dark"] .arch-flow-col-header.external { background: #3e2720; color: #f5cba7; }
+
+        /* SVG Connections Overlay */
+        .connections-overlay {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            pointer-events: none;
+            z-index: 0;
+        }
+        .connections-overlay path {
+            fill: none;
+            stroke: #bdc3c7;
+            stroke-width: 1.5;
+            opacity: 0.5;
+        }
+        .connections-overlay path.highlighted {
+            stroke: var(--accent);
+            stroke-width: 2.5;
+            opacity: 1;
+        }
+        :root[data-theme="dark"] .connections-overlay path {
+            stroke: #4a5568;
+        }
 
         .panel-right {
             width: 292px;
@@ -578,12 +727,10 @@
             </div>
             <div class="canvas-wrap" id="canvasWrap">
                 <div class="canvas-inner" id="canvasInner">
-                    <div class="mermaid" id="mermaidContainer">
-%% initMermaid() will inject buildLayerViewCode() here
-                    </div>
-                    <div class="mermaid" id="mermaidFlowContainer" style="display:none">
-%% switchCanvasTab('flow') will inject buildFlowViewCode() here
-                    </div>
+                    <div id="layerView" class="arch-view"></div>
+                    <div id="flowView" class="arch-view" style="display:none"></div>
+                </div>
+                <svg id="connectionsSVG" class="connections-overlay"></svg>
             </div>
             <div class="canvas-hint">拖拽平移 · 滚轮缩放 · 点击节点高亮相关组件</div>
         </div>
@@ -631,12 +778,6 @@
 // ╚════════════════════════════════════════════════════════════════════╝
 const systemData = {{SYSTEM_DATA}};
 
-
-// Closing mermaidFlowContainer and canvas wrappers
-                </div>
-            </div>
-        </div>
-
 // State
 let currentLeftTab = 'components';
 let currentRightTab = 'detail';
@@ -671,7 +812,15 @@ function init() {
     renderTree();
     renderEndpoints();
     initTheme();
-    initMermaid();
+    renderAll();
+}
+
+function renderAll() {
+    renderLayerView();
+    setTimeout(() => { initCanvas(); drawConnections(); }, 100);
+    // Click canvas background to clear
+    const wrap = document.getElementById('canvasWrap');
+    if (wrap) wrap.addEventListener('click', function(e) { if (e.target === wrap || e.target.id === 'canvasInner' || e.target.classList.contains('connections-overlay')) clearHl(); });
 }
 
 function renderProjectInfo() {
@@ -733,57 +882,6 @@ function applyTheme() {
     const btn = document.getElementById('themeToggle');
     if (btn) btn.textContent = currentTheme === 'light' ? '浅色' : '深色';
     try { localStorage.setItem('codearch-theme', currentTheme); } catch(e) {}
-    
-    const svg = document.querySelector('#mermaidContainer svg');
-    if (svg) {
-        const code = document.querySelector('#mermaidContainer code');
-        if (code) {
-            const mermaidCode = code.textContent || code.innerText || '';
-            svg.remove();
-            const pre = document.createElement('code');
-            pre.className = 'mermaid';
-            pre.textContent = mermaidCode;
-            document.getElementById('mermaidContainer').appendChild(pre);
-            mermaid.initialize({ startOnLoad: false, theme: 'base', themeVariables: getMermaidThemeVars() });
-            mermaid.run({ querySelector: '#mermaidContainer .mermaid' });
-            setTimeout(() => { initCanvas(); initHighlight(); }, 600);
-        }
-    }
-}
-
-function getMermaidThemeVars() {
-    if (currentTheme === 'dark') {
-        return {
-            primaryColor: '#1a3a5c',
-            primaryTextColor: '#e0e0e0',
-            primaryBorderColor: '#3498db',
-            lineColor: '#4a5568',
-            secondaryColor: '#1e2a45',
-            tertiaryColor: '#16213e',
-            background: '#1a1a2e',
-            mainBkg: '#16213e',
-            nodeBorder: '#0f3460',
-            clusterBkg: '#1e2a45',
-            clusterBorder: '#0f3460',
-            titleColor: '#e0e0e0',
-            edgeLabelBackground: '#16213e'
-        };
-    }
-    return {
-        primaryColor: '#eaf4fb',
-        primaryTextColor: '#2c3e50',
-        primaryBorderColor: '#3498db',
-        lineColor: '#bdc3c7',
-        secondaryColor: '#f0f4f8',
-        tertiaryColor: '#ffffff',
-        background: '#f0f4f8',
-        mainBkg: '#ffffff',
-        nodeBorder: '#dde3ec',
-        clusterBkg: '#f8fafc',
-        clusterBorder: '#dde3ec',
-        titleColor: '#2c3e50',
-        edgeLabelBackground: '#ffffff'
-    };
 }
 
 // Zoom + Pan
@@ -865,10 +963,10 @@ function resetZoom() { curZoom = 1; panX = 0; panY = 0; updateTransform(); }
 
 function fitToWindow() {
     const wrap = document.getElementById('canvasWrap');
-    const svg = document.querySelector('#mermaidContainer svg');
-    if (!wrap || !svg) return;
-    const r = svg.getBoundingClientRect();
-    const wW = wrap.clientWidth - 24, wH = wrap.clientHeight - 24;
+    const view = document.getElementById('layerView');
+    if (!wrap || !view) return;
+    const r = view.getBoundingClientRect();
+    const wW = wrap.clientWidth - 40, wH = wrap.clientHeight - 40;
     if (r.width <= 0 || r.height <= 0) return;
     curZoom = Math.max(minZoom, Math.min(maxZoom, Math.min(wW / r.width, wH / r.height)));
     panX = 0; panY = 0; updateTransform();
@@ -883,8 +981,8 @@ function switchCanvasTab(tab) {
     document.querySelectorAll('.tab-bar .tab-btn').forEach(b => {
         if (b.textContent.includes(tab === 'layer' ? '分层视图' : '流程视图')) b.classList.add('active');
     });
-    const layer = document.getElementById('mermaidContainer');
-    const flow = document.getElementById('mermaidFlowContainer');
+    const layer = document.getElementById('layerView');
+    const flow = document.getElementById('flowView');
     if (layer && flow) {
         if (tab === 'layer') {
             layer.style.display = '';
@@ -892,191 +990,9 @@ function switchCanvasTab(tab) {
         } else {
             layer.style.display = 'none';
             flow.style.display = '';
-            // Inject flow view code before rendering
-            flow.textContent = buildFlowViewCode();
-            mermaid.run({ querySelector: '#mermaidFlowContainer' });
-            setTimeout(() => { initCanvas(); initHighlight(); }, 600);
+            if (!flow.dataset.rendered) renderFlowView();
         }
-    }
-}
-
-// Dynamic relationship mapping
-function getRelatedComponents(label, nodeId) {
-    const result = new Set();
-    const comps = systemData.components || [];
-    const domain = getDomainFromLabel(label);
-    
-    // 1. Find the component
-    const comp = comps.find(c => c.id === label || c.id === domain);
-    
-    // 2. Direct dependencies (injects)
-    if (comp && comp.injects) {
-        comp.injects.forEach(inj => {
-            const target = comps.find(c => c.id === inj);
-            if (target) result.add(target.id);
-        });
-    }
-    
-    // 3. Components that depend on this one
-    comps.forEach(c => {
-        if (c.injects && c.injects.includes(comp?.id || label)) {
-            result.add(c.id);
-        }
-    });
-    
-    // 4. Same domain
-    if (domain) {
-        comps.forEach(c => {
-            if (c.domain === domain && c.id !== label) {
-                result.add(c.id);
-            }
-        });
-    }
-    
-    // 5. External services related to this component
-    const extServices = systemData.externalServices || [];
-    extServices.forEach(ext => {
-        // Simple heuristic: check if component uses similar tech
-        if (comp) {
-            const techIndicators = {
-                'MySQL': ['mysql', 'jpa', 'repository', 'sql'],
-                'MongoDB': ['mongo', 'document'],
-                'Redis': ['redis', 'cache'],
-                'Neo4j': ['neo4j', 'graph', 'bolt', 'cypher'],
-                'Qdrant': ['vector', 'qdrant', 'embedding', 'rag']
-            };
-            for (const [svc, indicators] of Object.entries(techIndicators)) {
-                if (ext.name === svc && indicators.some(ind => 
-                    (comp.id + comp.package + comp.file).toLowerCase().includes(ind))) {
-                    result.add(svc);
-                }
-            }
-        }
-    });
-    
-    return Array.from(result);
-}
-
-function getDomainFromLabel(label) {
-    const domains = {
-        'product': ['product', '商品', 'prod'],
-        'order': ['order', '订单'],
-        'user': ['user', 'consumer', '用户', 'customer'],
-        'cart': ['cart', '购物车'],
-        'ai': ['ai', 'knowledge', 'graph', 'rag', 'llm', '智能'],
-        'payment': ['payment', 'pay', '支付', 'transaction']
-    };
-    
-    const lower = label.toLowerCase();
-    for (const [domain, keywords] of Object.entries(domains)) {
-        if (keywords.some(k => lower.includes(k))) return domain;
-    }
-    return null;
-}
-
-// Highlight
-function initHighlight() {
-    let retry = 0;
-    const timer = setInterval(() => {
-        const svg = document.querySelector('#mermaidContainer svg');
-        if (!svg) { retry++; if (retry > 40) clearInterval(timer); return; }
-        clearInterval(timer);
-        
-        svg.querySelectorAll('.node').forEach(n => {
-            n.style.cursor = 'pointer';
-            n.onclick = (e) => {
-                e.stopPropagation();
-                const labelEl = n.querySelector('.nodeLabel') || n.querySelector('text');
-                if (labelEl) {
-                    const text = labelEl.textContent.replace(/<[^>]*>/g, '').replace(/\s*\n.*/s, '').trim();
-                    onNodeClick(text, n);
-                }
-            };
-        });
-        
-        svg.onclick = () => clearHl();
-        fitToWindow();
-    }, 100);
-}
-
-function onNodeClick(label, nodeEl) {
-    const relatedIds = getRelatedComponents(label, nodeEl.id || '');
-    const svg = document.querySelector('#mermaidContainer svg');
-    if (!svg) return;
-    
-    const allNodes = svg.querySelectorAll('.node');
-    
-    // Find matching nodes
-    const targetNodes = [];
-    allNodes.forEach(n => {
-        const nid = normalizeNodeId(n.id || '');
-        const nlabel = (n.querySelector('.nodeLabel') || n).textContent || '';
-        if (relatedIds.some(id => normalizeNodeId(id) === nid || nlabel.includes(id))) {
-            targetNodes.push(n);
-        }
-    });
-    
-    // Fallback: fuzzy match
-    if (targetNodes.length === 0) {
-        allNodes.forEach(n => {
-            const txt = (n.querySelector('.nodeLabel') || n).textContent || '';
-            if (txt.indexOf(label) >= 0) targetNodes.push(n);
-        });
-    }
-    
-    // Apply highlighting
-    svg.querySelectorAll('.highlighted, .dim').forEach(el => el.classList.remove('highlighted', 'dim'));
-    svg.querySelectorAll('.dim-edge').forEach(el => { el.style.opacity = ''; el.classList.remove('dim-edge'); });
-    
-    const inner = document.getElementById('canvasInner');
-    if (inner) inner.classList.add('dim-mode');
-    
-    allNodes.forEach(n => n.classList.add('dim'));
-    svg.querySelectorAll('.edgePath').forEach(e => { e.style.opacity = '0.08'; e.classList.add('dim-edge'); });
-    
-    targetNodes.forEach(n => {
-        n.classList.remove('dim');
-        n.classList.add('highlighted');
-        
-        // Highlight connected edges
-        const nid = n.id || '';
-        svg.querySelectorAll('.edgePath').forEach(e => {
-            const eid = e.id || '';
-            if (eid.indexOf(nid) >= 0 || nid.indexOf(eid.split('--')[0].replace(/:.*$/, '')) >= 0) {
-                e.classList.remove('dim-edge');
-                e.style.opacity = '1';
-                e.classList.add('highlighted');
-            }
-        });
-    });
-}
-
-function normalizeNodeId(id) {
-    return id.replace(/-\d+$/, '').replace(/_[\w]+$/, '');
-}
-
-function clearHl() {
-    const svg = document.querySelector('#mermaidContainer svg');
-    const inner = document.getElementById('canvasInner');
-    if (svg) {
-        svg.querySelectorAll('.highlighted, .dim').forEach(el => el.classList.remove('highlighted', 'dim'));
-        svg.querySelectorAll('.dim-edge').forEach(el => { el.style.opacity = ''; el.classList.remove('dim-edge'); });
-    }
-    if (inner) inner.classList.remove('dim-mode');
-}
-
-function highlightRelatedNodes(nodeId) {
-    if (nodeId) {
-        const svg = document.querySelector('#mermaidContainer svg');
-        if (svg) {
-            const nodes = svg.querySelectorAll('.node');
-            nodes.forEach(n => {
-                const txt = (n.querySelector('.nodeLabel') || n).textContent || '';
-                if (txt.includes(nodeId)) {
-                    onNodeClick(nodeId, n);
-                }
-            });
-        }
+        drawConnections();
     }
 }
 
@@ -1258,7 +1174,6 @@ function showDetail(nodeId) {
     document.getElementById('detailPanel').innerHTML = html;
     switchTab('right', 'detail');
     renderTrace(nodeId, comp);
-    highlightRelatedNodes(nodeId);
 }
 
 // Trace
@@ -1440,122 +1355,195 @@ function toast(msg, isErr, type) {
     setTimeout(() => t.classList.remove('show'), 2500);
 }
 
-// Mermaid init
-function buildMermaidCode() {
+// ── Pure HTML/CSS Architecture Rendering ──
+
+const LAYER_LABELS = {
+    frontend: '🟣 前端', entry: '🔵 入口层', service: '🟢 业务层',
+    data: '🟡 数据访问层', infra: '⚙️ 基础设施', external: '🔗 外部服务',
+    job: '⏰ 定时任务', event: '📡 事件层', other: '📦 其他'
+};
+const LAYER_ORDER = ['frontend','entry','service','data','infra','external','job','event','other'];
+
+function renderLayerView() {
+    const container = document.getElementById('layerView');
+    if (!container) return;
     const comps = systemData.components || [];
+    const byLayer = {};
+    comps.forEach(c => { const l = c.layer || 'other'; (byLayer[l] = byLayer[l] || []).push(c); });
+
+    let html = '';
+    LAYER_ORDER.forEach(layerName => {
+        const items = byLayer[layerName];
+        if (!items || !items.length) return;
+        html += `<div class="arch-layer"><div class="arch-layer-header ${layerName}">${LAYER_LABELS[layerName] || layerName} (${items.length})</div>`;
+        html += '<div class="arch-layer-body">';
+        items.forEach(c => {
+            const rCount = c.routes ? c.routes.length : 0;
+            const domainTag = c.domain ? `<span class="node-badge domain">${c.domain}</span>` : '';
+            html += `<div class="arch-node" data-id="${escAttr(c.id)}" data-layer="${layerName}" onclick="onNodeClick('${escAttr(c.id)}', this)" title="${escAttr(c.name || c.id)}&#10;${escAttr(c.file || '')}">
+                <div class="node-type-tag">${c.type || ''}</div>
+                <div class="node-name">${escHtml(c.name || c.id)}</div>
+                <div class="node-meta">${rCount ? `<span class="node-badge routes">${rCount} API</span>` : ''}${domainTag}</div>
+            </div>`;
+        });
+        html += '</div></div>';
+    });
+    container.innerHTML = html || '<div class="empty-state"><div class="icon">📭</div><div>暂无组件数据</div></div>';
+}
+
+function renderFlowView() {
+    const container = document.getElementById('flowView');
+    if (!container) return;
+    const comps = systemData.components || [];
+    const extSvcs = systemData.externalServices || [];
+    const cols = { entry: [], service: [], data: [], external: [] };
+    comps.forEach(c => {
+        const l = c.layer;
+        if (l === 'entry') cols.entry.push(c);
+        else if (l === 'service') cols.service.push(c);
+        else if (l === 'data') cols.data.push(c);
+    });
+    extSvcs.forEach(s => cols.external.push({ id: 'EXT_'+s.name, name: s.name, type: s.type, layer: 'external' }));
+
+    let html = '<div class="arch-flow">';
+    const flowLayers = [
+        { key: 'entry', label: '🔵 入口层', cls: 'entry' },
+        { key: 'service', label: '🟢 业务层', cls: 'service' },
+        { key: 'data', label: '🟡 数据层', cls: 'data' },
+        { key: 'external', label: '🔗 外部服务', cls: 'external' }
+    ];
+    flowLayers.forEach(fl => {
+        const items = cols[fl.key] || [];
+        html += `<div class="arch-flow-col"><div class="arch-flow-col-header ${fl.cls}">${fl.label}</div>`;
+        items.slice(0, 20).forEach(c => {
+            html += `<div class="arch-node" data-id="${escAttr(c.id)}" data-layer="${fl.key}" style="min-width:110px;" onclick="onNodeClick('${escAttr(c.id)}', this)">
+                <div class="node-type-tag">${c.type || c.id.split('_')[0] || ''}</div>
+                <div class="node-name" style="font-size:12px;">${escHtml(c.name || c.id)}</div>
+            </div>`;
+        });
+        html += '</div>';
+    });
+    // Arrows between columns
+    if (cols.entry.length && cols.service.length) html += '<div style="display:flex;align-items:center;font-size:24px;color:var(--text-dim);padding:0 4px;">→</div>';
+    if (cols.service.length && cols.data.length) html += '<div style="display:flex;align-items:center;font-size:24px;color:var(--text-dim);padding:0 4px;">→</div>';
+    if (cols.data.length && cols.external.length) html += '<div style="display:flex;align-items:center;font-size:24px;color:var(--text-dim);padding:0 4px;">→</div>';
+    html += '</div>';
+    container.innerHTML = html;
+    container.dataset.rendered = '1';
+}
+
+function drawConnections() {
+    const svg = document.getElementById('connectionsSVG');
+    if (!svg) return;
     const deps = systemData.dependencies || [];
-    const extSvcs = systemData.externalServices || [];
+    const activeView = document.getElementById('layerView').style.display === 'none' ? 'flow' : 'layer';
+    const container = activeView === 'layer' ? document.getElementById('layerView') : document.getElementById('flowView');
+    if (!container) return;
 
-    const byLayer = { entry: [], service: [], data: [], infra: [], frontend: [] };
-    comps.forEach(c => { const l = c.layer || 'service'; (byLayer[l] = byLayer[l] || []).push(c); });
+    const nodes = {};
+    container.querySelectorAll('.arch-node').forEach(n => { nodes[n.dataset.id] = n; });
 
-    const sid = c => String(c.id || c).replace(/[^a-zA-Z0-9_]/g, '_');
-    const label = c => {
-        const r = c.routes && c.routes[0];
-        const suffix = r ? '\\n' + r.path.split('{')[0] : '';
-        return `${c.name}${suffix}`;
-    };
-
-    const layerMap = {
-        entry: { title: '🔵 Entry Layer (HTTP)', color: '#1a5276', bg: '#d6eaf8', stroke: '#2e86c1' },
-        service: { title: '🟣 Service Layer', color: '#1e8449', bg: '#d5f5e3', stroke: '#27ae60' },
-        data: { title: '🟡 Data Access Layer', color: '#9a7d0a', bg: '#fef9e7', stroke: '#f39c12' },
-        infra: { title: '⚪ Infrastructure', color: '#6e2f1a', bg: '#fdebd0', stroke: '#e67e22' },
-        frontend: { title: '🟣 Frontend', color: '#4a235a', bg: '#f5eef8', stroke: '#8e44ad' }
-    };
-
-    let code = 'flowchart TB\n';
-
-    Object.entries(byLayer).forEach(([layerName, layerItems]) => {
-        if (!layerItems.length) return;
-        const cfg = layerMap[layerName] || layerMap.service;
-        const safeId = layerName === 'frontend' ? 'FRONTEND' : layerName.toUpperCase();
-        code += `    subgraph ${safeId}["${cfg.title}"]\n`;
-        layerItems.forEach(c => { code += `        ${sid(c)}["${label(c)}"]\n`; });
-        code += `    end\n`;
-    });
-
-    const extIds = {};
-    extSvcs.forEach(s => { const eid = 'EXT_' + s.name.replace(/[^a-zA-Z0-9]/g, '_'); extIds[s.name] = eid; });
-    code += `    subgraph EXTERNAL["⚪ External Services"]\n`;
-    extSvcs.forEach(s => { code += `        ${extIds[s.name]}["${s.name}\\n<small>${s.type}</small>"]\n`; });
-    code += `    end\n`;
-
-    const depMap = {};
-    (systemData.components || []).forEach(c => { depMap[c.id] = c; });
-
+    let paths = '';
     deps.forEach(d => {
-        const fe = depMap[d.from] || extIds[d.from];
-        const te = depMap[d.to] || extIds[d.to];
-        if (!fe || !te) return;
-        const arrow = d.type === 'uses' || d.type === 'stores' ? '-.->' : '-->';
-        code += `    ${sid({id: d.from})} ${arrow} ${sid({id: d.to})}\n`;
+        const fromEl = nodes[d.from];
+        const toEl = nodes[d.to];
+        if (!fromEl || !toEl) return;
+        const wrap = document.getElementById('canvasWrap');
+        const wr = wrap.getBoundingClientRect();
+        const fr = fromEl.getBoundingClientRect();
+        const tr = toEl.getBoundingClientRect();
+        const x1 = fr.left + fr.width/2 - wr.left;
+        const y1 = fr.top + fr.height - wr.top;
+        const x2 = tr.left + tr.width/2 - wr.left;
+        const y2 = tr.top - wr.top;
+        const mx = (x1 + x2) / 2;
+        const cls = d.type || 'calls';
+        const dash = (d.type === 'uses' || d.type === 'stores') ? ' stroke-dasharray="6,3"' : '';
+        paths += `<path d="M${x1},${y1} C${mx},${y1} ${mx},${y2} ${x2},${y2}" class="conn-edge conn-${cls}" data-from="${escAttr(d.from)}" data-to="${escAttr(d.to)}"${dash}/>`;
     });
-
-    Object.entries(layerMap).forEach(([layerName, layerCfg]) => {
-        const safeId = layerName === 'frontend' ? 'FRONTEND' : layerName.toUpperCase();
-        code += `    classDef ${safeId} color:${layerCfg.color},fill:${layerCfg.bg},stroke:${layerCfg.stroke},stroke-width:2px\n`;
-        (byLayer[layerName] || []).forEach(c => { code += `    class ${sid(c)} ${safeId}\n`; });
-    });
-    extSvcs.forEach(s => { code += `    class ${extIds[s.name]} EXTERNAL\n`; });
-    code += `    classDef EXTERNAL color:#6e2f1a,fill:#fdebd0,stroke:#e67e22,stroke-width:2px\n`;
-
-    return code;
+    svg.innerHTML = paths;
 }
 
-function buildFlowViewCode() {
+function onNodeClick(nodeId, el) {
+    const container = document.getElementById('layerView').style.display === 'none' ? document.getElementById('flowView') : document.getElementById('layerView');
+    if (!container) return;
+
+    // Toggle selection
+    const wasSelected = el.classList.contains('selected');
+    container.querySelectorAll('.arch-node.selected').forEach(n => n.classList.remove('selected'));
+    if (!wasSelected) {
+        el.classList.add('selected');
+        selectedNode = nodeId;
+        showDetail(nodeId);
+    } else {
+        selectedNode = null;
+        clearHl();
+        return;
+    }
+
+    // Highlight related
+    highlightRelatedNodes(nodeId);
+}
+
+function highlightRelatedNodes(nodeId) {
+    const activeView = document.getElementById('layerView').style.display === 'none' ? 'flow' : 'layer';
+    const container = activeView === 'layer' ? document.getElementById('layerView') : document.getElementById('flowView');
+    if (!container) return;
+
     const comps = systemData.components || [];
-    const extSvcs = systemData.externalServices || [];
-    const depMap = {};
-    comps.forEach(c => { depMap[c.id] = c; });
-    const sid = id => id.replace(/[^a-zA-Z0-9_]/g, '_');
-    let code = 'flowchart LR\n';
-    code += `    subgraph FRONTEND["🟣 前端 Vue 3 SPA"]\n`;
-    comps.filter(c => c.layer === 'frontend').forEach(c => { code += `        ${sid(c.id)}["${c.name}"]\n`; });
-    code += `    end\n`;
-    code += `    subgraph API_ENTRY["🔵 API 入口层"]\n`;
-    comps.filter(c => c.layer === 'entry').slice(0, 20).forEach(c => { code += `        ${sid(c.id)}["${c.name}"]\n`; });
-    code += `    end\n`;
-    code += `    subgraph SERVICES["🟢 业务服务层"]\n`;
-    comps.filter(c => c.layer === 'service').slice(0, 20).forEach(c => { code += `        ${sid(c.id)}["${c.name}"]\n`; });
-    code += `    end\n`;
-    code += `    subgraph DATA["🟡 数据访问层"]\n`;
-    comps.filter(c => c.layer === 'data').forEach(c => { code += `        ${sid(c.id)}["${c.name}"]\n`; });
-    code += `    end\n`;
-    code += `    subgraph EXTERNAL["⚪ 外部服务"]\n`;
-    extSvcs.forEach(s => { code += `        ${sid('EXT_'+s.name)}["${s.name}"]\n`; });
-    code += `    end\n`;
-    (systemData.dependencies || []).forEach(d => {
-        const fe = depMap[d.from];
-        const te = depMap[d.to];
-        if (!fe || !te) return;
-        const arrow = d.type === 'uses' ? '-.->' : '-->';
-        code += `    ${sid(d.from)} ${arrow} ${sid(d.to)}\n`;
+    const comp = comps.find(c => c.id === nodeId);
+    const relatedIds = new Set();
+    if (comp) {
+        (comp.injects || []).forEach(inj => relatedIds.add(inj));
+        comps.forEach(c => { if ((c.injects || []).includes(nodeId)) relatedIds.add(c.id); });
+        if (comp.domain) comps.forEach(c => { if (c.domain === comp.domain && c.id !== nodeId) relatedIds.add(c.id); });
+    }
+
+    const allNodes = container.querySelectorAll('.arch-node');
+    const svg = document.getElementById('connectionsSVG');
+
+    if (relatedIds.size === 0) {
+        // No related: just select the one
+        allNodes.forEach(n => { if (n.dataset.id !== nodeId) n.classList.add('dim'); });
+        if (svg) svg.querySelectorAll('path').forEach(p => p.setAttribute('opacity', '0.08'));
+        return;
+    }
+
+    allNodes.forEach(n => {
+        if (n.dataset.id === nodeId) { n.classList.add('highlighted'); n.classList.remove('dim'); }
+        else if (relatedIds.has(n.dataset.id)) { n.classList.add('highlighted'); n.classList.remove('dim'); }
+        else n.classList.add('dim');
     });
-    extSvcs.forEach(s => {
-        const eid = sid('EXT_'+s.name);
-        (systemData.dependencies || []).filter(d => d.to === s.name).forEach(d => { code += `    ${sid(d.from)} -.-> ${eid}\n`; });
-    });
-    code += `    classDef frontend color:#4a235a,fill:#f5eef8,stroke:#8e44ad,stroke-width:2px\n`;
-    code += `    classDef entry color:#1a5276,fill:#d6eaf8,stroke:#2e86c1,stroke-width:2px\n`;
-    code += `    classDef service color:#1e8449,fill:#d5f5e3,stroke:#27ae60,stroke-width:2px\n`;
-    code += `    classDef data color:#9a7d0a,fill:#fef9e7,stroke:#f39c12,stroke-width:2px\n`;
-    code += `    classDef EXTERNAL color:#6e2f1a,fill:#fdebd0,stroke:#e67e22,stroke-width:2px\n`;
-    comps.filter(c => c.layer === 'frontend').forEach(c => { code += `    class ${sid(c.id)} frontend\n`; });
-    comps.filter(c => c.layer === 'entry').slice(0, 20).forEach(c => { code += `    class ${sid(c.id)} entry\n`; });
-    comps.filter(c => c.layer === 'service').slice(0, 20).forEach(c => { code += `    class ${sid(c.id)} service\n`; });
-    comps.filter(c => c.layer === 'data').forEach(c => { code += `    class ${sid(c.id)} data\n`; });
-    extSvcs.forEach(s => { code += `    class ${sid('EXT_'+s.name)} EXTERNAL\n`; });
-    return code;
+
+    if (svg) {
+        svg.querySelectorAll('path').forEach(p => {
+            const f = p.dataset.from, t = p.dataset.to;
+            if ((f === nodeId && relatedIds.has(t)) || (t === nodeId && relatedIds.has(f))) {
+                p.classList.add('highlighted');
+                p.setAttribute('opacity', '1');
+            } else {
+                p.classList.remove('highlighted');
+                p.setAttribute('opacity', '0.08');
+            }
+        });
+    }
 }
 
-function initMermaid() {
-    const container = document.getElementById('mermaidContainer');
-    if (container) container.textContent = buildMermaidCode();
-    mermaid.initialize({ startOnLoad: false, theme: 'base', themeVariables: getMermaidThemeVars(), flowchart: { useMaxWidth: false, htmlLabels: true, curve: 'basis' } });
-    mermaid.run({ querySelector: '.mermaid' });
-    setTimeout(() => { initCanvas(); initHighlight(); }, 600);
+function clearHl() {
+    const activeView = document.getElementById('layerView').style.display === 'none' ? 'flow' : 'layer';
+    const container = activeView === 'layer' ? document.getElementById('layerView') : document.getElementById('flowView');
+    if (container) {
+        container.querySelectorAll('.arch-node').forEach(n => n.classList.remove('highlighted','dim','selected'));
+    }
+    const svg = document.getElementById('connectionsSVG');
+    if (svg) {
+        svg.querySelectorAll('path').forEach(p => { p.classList.remove('highlighted'); p.setAttribute('opacity', '0.5'); });
+    }
+    selectedNode = null;
 }
+
+function escAttr(s) { return String(s || '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function escHtml(s)  { return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
 // Start
 init();

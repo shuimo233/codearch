@@ -46,7 +46,7 @@
 
 ---
 
-## 3. Execution — 6 Steps
+## 3. Execution — 8 Steps
 
 ### Step 0 — Scope Detection
 
@@ -214,6 +214,149 @@ Scan for: config files, environment variables, SDK imports, connection strings.
 
 **Render**: produce output files per format. See Section 5.
 
+### Step 7 — Generate Onboarding Data (NEW)
+
+From the scan results, generate human-readable onboarding narrative. Add to `system-data.json` as `onboarding` field.
+
+#### 7.1 Project Summary
+
+```
+IF project has ≤ 5 domains:
+  summary = "{projectName} 是一个 {framework} 项目，包含 {domain_count} 个业务域：{domain_list}。
+            核心入口是 {top_entry_point}（{route_count} 个端点）。
+            依赖 {external_service_list}。"
+ELSE:
+  summary = "{projectName} 是一个 {framework} 大型项目，包含 {domain_count} 个业务域。
+            主要入口分布在 {top_3_entry_points}。
+            外部依赖：{external_service_list}。"
+```
+
+#### 7.2 Where to Start
+
+For all entry-layer components, weighted sort:
+```
+priority = routes.length * 3 + inbound_deps * 2 + methods.length * 1
+```
+Take Top 5, assign priority 3 (top-2) / 2 (next-2) / 1 (rest). For each, write **why** in one sentence (what it does, why read it first).
+
+#### 7.3 Modules (per domain)
+
+For each domain:
+- **purpose**: infer from entity/service names (e.g., "订单生命周期管理：创建、支付、发货、取消、退款")
+- **entry_points**: collect all routes from this domain's controllers/routers
+- **key_classes**: top 5 components sorted by inbound deps
+- **depends_on**: other domains this domain's components call into
+- **complexity**: `low` (≤10 nodes) / `medium` (11-30) / `high` (>30)
+
+#### 7.4 Key Flows
+
+For each high-priority entry method:
+1. Start from entry method (Controller route handler)
+2. BFS along dependency edges through service → data layer
+3. Collect all steps, deduplicate, order by call sequence
+4. Generate sequence flow description
+5. **Only keep flows with depth ≥ 3** (too shallow = no value)
+
+#### 7.5 Code Conventions
+
+Infer from annotation/framework patterns found during scan:
+- Example: "所有 Service 接口必须有对应的 ServiceImpl" (if `implements` pattern detected)
+- Example: "异常统一使用 @RestControllerAdvice 处理" (if detected)
+- Example: "API 路径前缀：/api/v1/" (from route patterns)
+- Limit to 5-8 conventions. Only emit what was actually observed.
+
+#### 7.6 Gotchas
+
+Convert `metrics.architectureSmells` + `warnings` into human-readable notes:
+- `error` severity → red flag, must-read
+- `warning` severity → important to know
+- `info` severity → nice to know
+
+Examples:
+- "OrderService ↔ InventoryService 存在循环依赖"
+- "PaymentGateway 超时配置在 yml 中而非代码常量"
+- "LegacyUtil.deprecatedMethod() 无调用者"
+
+### Step 8 — Three-Output Rendering (NEW)
+
+Produce all three output files from the same `system-data.json`:
+
+#### 8.1 architecture.html
+
+1. Read `TEMPLATES/architecture.html` → contains `{{SYSTEM_DATA}}` placeholder
+2. Read the generated `system-data.json`
+3. Replace `{{SYSTEM_DATA}}` with the actual JSON string
+4. Write to `docs/architecture/architecture.html`
+
+#### 8.2 graph.json (AI-optimized)
+
+Transform `system-data.json` into compact format:
+
+```json
+{
+  "_v": 2,
+  "_project": "<projectName>",
+  "_lang": "<languagePack>",
+  "_brief": "<nodeCount> nodes, <edgeCount> edges, <domainCount> domains. search_graph / trace_path to explore.",
+
+  "n": [
+    { "i":"<id>", "l":"<type>", "n":"<name>", "f":"<file>",
+      "e":["<route>"], "d":"<domain>" }
+  ],
+
+  "e": [
+    { "f":"<from_id>", "t":"<to_id>", "y":"<type>" }
+  ],
+
+  "d": [
+    { "n":"<domain_name>", "c":["<component_ids>"], "x":["<dep_domains>"] }
+  ],
+
+  "x": [
+    { "n":"<service_name>", "t":"<type>", "k":"<configKey>" }
+  ],
+
+  "h": [
+    { "f":"<component_id>", "in":<count>, "out":<count>, "risk":"<high|medium>", "reason":"..." }
+  ],
+
+  "z": [
+    { "n":"<name>", "f":"<file>", "reason":"zero callers / deprecated" }
+  ]
+}
+```
+
+**Key compression rules:**
+- Node keys: `i` (id), `l` (label/type), `n` (name), `f` (file), `e` (exports/routes), `c` (calls), `d` (domain), `p` (params), `r` (returns)
+- Edge keys: `f` (from), `t` (to), `y` (type)
+- Domain keys: `n` (name), `c` (components), `x` (depends_on domains)
+- External keys: `n` (name), `t` (type), `k` (configKey)
+- Hotspot keys: `f` (component), `in` (inbound), `out` (outbound), `risk`
+- Dead code: `z` array with `n` (name), `f` (file), `reason`
+- Omit fields with null/empty values entirely
+- Only include `h` (hotspots) and `z` (dead_code) if found
+
+**Token target**: < 2,000 tokens for a 50-component project.
+
+#### 8.3 README.onboard.md
+
+1. Read `TEMPLATES/README.onboard.md`
+2. Fill placeholders using `system-data.json`:
+   - `{{PROJECT_NAME}}` → `meta.projectName`
+   - `{{GENERATED_AT}}` → `meta.generatedAt`
+   - `{{NODE_COUNT}}` → `meta.nodeCount`
+   - `{{DOMAIN_COUNT}}` → `domains.length`
+   - `{{ROUTE_COUNT}}` → count all routes across all components
+   - `{{PROJECT_SUMMARY}}` → generated summary from Step 7.1
+   - `{{TECH_STACK}}` → inferred stack, comma-separated
+   - `{{WHERE_TO_START}}` → Top-5 table rows from Step 7.2
+   - `{{MODULES}}` → domain descriptions from Step 7.3
+   - `{{KEY_FLOWS}}` → sequence diagrams from Step 7.4
+   - `{{GOTCHAS}}` → from Step 7.6 + `metrics.architectureSmells`
+   - `{{CONVENTIONS}}` → from Step 7.5
+   - Empty sections: use `{{#NO_*}}` fallback blocks
+3. Write to `docs/architecture/README.onboard.md`
+
 ---
 
 ## 4. Incremental Update Mode (`incremental: true`)
@@ -240,7 +383,9 @@ When user wants to update an existing diagram without full rescan:
 | Format | File | When |
 |--------|------|------|
 | `json` | `docs/architecture/system-data.json` | Always (machine-readable source of truth) |
-| `html` | `docs/architecture/architecture.html` | Default |
+| `html` | `docs/architecture/architecture.html` | Default (human interactive view) |
+| `json` | `docs/architecture/graph.json` | Always (AI-optimized compact graph) |
+| `markdown` | `docs/architecture/README.onboard.md` | Always (human onboarding narrative) |
 
 ### Template Files (skill resources — DO NOT put project data here)
 
@@ -248,13 +393,14 @@ When user wants to update an existing diagram without full rescan:
 |------|---------|
 | `TEMPLATES/architecture.html` | HTML viewer template. **Must contain `{{SYSTEM_DATA}}` placeholder. DO NOT fill with project data.** |
 | `TEMPLATES/system-data.json` | JSON data schema template |
+| `TEMPLATES/README.onboard.md` | Onboarding markdown template. **Must contain `{{PLACEHOLDER}}` markers. DO NOT fill with project data.** |
 
-**Build step — how to generate output HTML:**
-1. Read `TEMPLATES/architecture.html` → contains `{{SYSTEM_DATA}}` placeholder
-2. Read `system-data.json` → contains actual component data
-3. Replace `{{SYSTEM_DATA}}` in template with the actual JSON string
-4. Save result as `docs/architecture/architecture.html`
-5. `TEMPLATES/architecture.html` remains unchanged for the next project
+**Build step — how to generate output files:**
+
+1. Scan project → produce `system-data.json` (Steps 1-7)
+2. **architecture.html**: Read template → replace `{{SYSTEM_DATA}}` with actual JSON → save (zero dependencies, pure HTML/CSS)
+3. **graph.json**: Transform `system-data.json` using compression rules in Step 8.2 → save
+4. **README.onboard.md**: Read template → fill all placeholders from onboarding data in `system-data.json` → save
 
 ### Fallback Chain
 
@@ -262,7 +408,7 @@ If a template is missing:
 ```
 HTML template exists → architecture.html (interactive)
   ↓ template missing
-JSON only → system-data.json
+JSON + graph.json + README.onboard.md (all require system-data.json)
   ↓ scan fails entirely
 Text summary (always succeeds)
 ```
@@ -299,15 +445,21 @@ Text summary (always succeeds)
 - [ ] Every `routes[].componentId` exists in `components[]` (no dangling refs)
 - [ ] Every `domains[].componentIds[]` exists in `components[]` (no dangling refs)
 - [ ] `system-data.json` is valid, parseable JSON
+- [ ] `graph.json` is valid JSON with `_v`, `n`, `e` fields
+- [ ] `graph.json` token count ≤ 3,000 (for ≤ 80 component projects)
+- [ ] `README.onboard.md` written with actual project data (not template placeholders)
+- [ ] `onboarding.project_summary` is non-empty
+- [ ] `onboarding.where_to_start` has ≥ 1 entry (or warning emitted)
 - [ ] `warnings[]` field exists — emit if scan was partial or any count didn't match
-- [ ] At least one output file written
+- [ ] At least 2 output files written (system-data.json + one other)
 
 ### Post-Execution — HTML Integrity Check
 
 - [ ] `systemData` placeholder in `TEMPLATES/architecture.html` replaced with actual JSON
-- [ ] `mermaidContainer` div has dynamic code injection (not hardcoded Mermaid text)
-- [ ] Tab switch calls `mermaid.run()` on the hidden container when switching
-- [ ] `buildMermaidCode()` uses correct JS syntax (no regex `[^...` errors, no variable shadowing)
+- [ ] `layerView` div populated with arch-node elements (not empty)
+- [ ] `connectionsSVG` contains path elements for each dependency edge
+- [ ] Tab switch calls `renderFlowView()` on first use and `drawConnections()` on each switch
+- [ ] Theme toggle works without page reload (CSS variables only)
 
 ---
 
@@ -356,11 +508,14 @@ Never return empty. Always produce at least a text summary.
 | Language pack not found | Fall back to generic regex scan with `confidence: uncertain` |
 | Directory does not exist | Skip gracefully, add to `warnings[]` |
 | Template file missing | Fall back to next format in chain (Section 5) |
-| JSON parse error in template | Emit mermaid-only output |
-| Mermaid render error | Fall back to JSON + text summary |
+| JSON parse error in template | Fall back to JSON + text summary |
+| HTML render error | Fall back to JSON + text summary |
 | Component count mismatch | Add to `warnings[]`, note which type under-counted |
 | Network/external service detection | Mark as `inferred`, list the pattern that suggested it |
 | Monorepo detection uncertain | Scan all potential roots, emit `warnings[]` |
+| graph.json > 3,000 tokens | Truncate `n` array to top-50 by inbound deps, emit warning |
+| README.onboard.md template missing | Fall back: write a plain text summary using same onboarding data |
+| Onboarding data incomplete | Emit partial sections with `{{#NO_*}}` fallback blocks, add to `warnings[]` |
 
 ---
 
@@ -407,4 +562,5 @@ Never return empty. Always produce at least a text summary.
 | `LANGUAGES/go-stdlib.yaml` | Go stdlib/chi/Gin detection + rules |
 | `REFERENCE.md` | Schema definitions, color palette, aggregation rules, external service table |
 | `TEMPLATES/architecture.html` | HTML viewer template (`{{SYSTEM_DATA}}` placeholder — generic, no project data) |
-| `TEMPLATES/system-data.json` | JSON data schema template |
+| `TEMPLATES/system-data.json` | JSON data schema template (includes V2 `onboarding` / `impact_map` / `index_meta` fields) |
+| `TEMPLATES/README.onboard.md` | Onboarding markdown template (human-readable architecture guide) |

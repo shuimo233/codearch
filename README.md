@@ -4,7 +4,7 @@
 
 从源码自动生成交互式架构图（纯 HTML/CSS + JSON）。支持 Java Spring Boot、Node.js/Express、Python/FastAPI、Go。
 
-**零外部依赖** — 生成的 HTML 文件完全自包含，内置浏览器可直接打开，无需 CDN。
+**零外部依赖** — 生成的 HTML 文件完全自包含，纯 HTML/CSS 渲染，无需 CDN、无需下载任何文件，浏览器直接打开即可。
 
 ## 快速使用
 

@@ -95,6 +95,148 @@
       "description": "Warnings about partial scans, uncertain inferences, or architecture smells",
       "items": { "type": "string" }
     },
+    "onboarding": {
+      "type": "object",
+      "description": "Human-readable onboarding narrative data (V2)",
+      "properties": {
+        "project_summary": {
+          "type": "string",
+          "description": "One-paragraph project overview"
+        },
+        "tech_stack": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Technology stack list"
+        },
+        "where_to_start": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "file": { "type": "string" },
+              "why": { "type": "string" },
+              "priority": { "type": "integer", "minimum": 1, "maximum": 3 }
+            }
+          }
+        },
+        "modules": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string" },
+              "purpose": { "type": "string" },
+              "entry_points": { "type": "array", "items": { "type": "string" } },
+              "key_classes": { "type": "array", "items": { "type": "string" } },
+              "depends_on": { "type": "array", "items": { "type": "string" } },
+              "complexity": { "type": "string", "enum": ["low", "medium", "high"] },
+              "node_count": { "type": "integer" }
+            }
+          }
+        },
+        "key_flows": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string" },
+              "description": { "type": "string" },
+              "trigger": { "type": "string" },
+              "steps": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "from": { "type": "string" },
+                    "to": { "type": "string" },
+                    "action": { "type": "string" }
+                  }
+                }
+              },
+              "rollback": { "type": "string" }
+            }
+          }
+        },
+        "conventions": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "gotchas": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "severity": { "type": "string", "enum": ["error", "warning", "info"] },
+              "title": { "type": "string" },
+              "detail": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    "impact_map": {
+      "type": "object",
+      "description": "Architecture impact analysis results (V2)",
+      "properties": {
+        "hotspots": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "component": { "type": "string" },
+              "inbound": { "type": "integer" },
+              "outbound": { "type": "integer" },
+              "risk": { "type": "string", "enum": ["high", "medium", "low"] },
+              "reason": { "type": "string" }
+            }
+          }
+        },
+        "dead_code": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string" },
+              "file": { "type": "string" },
+              "reason": { "type": "string" }
+            }
+          }
+        },
+        "circular_deps": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "cycle": { "type": "array", "items": { "type": "string" } },
+              "severity": { "type": "string" }
+            }
+          }
+        },
+        "architecture_smells": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "type": { "type": "string" },
+              "severity": { "type": "string", "enum": ["info", "warning", "error"] },
+              "description": { "type": "string" },
+              "components": { "type": "array", "items": { "type": "string" } }
+            }
+          }
+        }
+      }
+    },
+    "index_meta": {
+      "type": "object",
+      "description": "Index metadata for incremental updates (V2)",
+      "properties": {
+        "version": { "type": "integer", "const": 2 },
+        "fingerprint": { "type": "string", "description": "Git tree hash or content hash" },
+        "incremental_base": { "type": "string", "description": "Previous fingerprint this was diffed against" },
+        "file_count": { "type": "integer" },
+        "scan_duration_ms": { "type": "integer" }
+      }
+    },
     "metrics": {
       "type": "object",
       "description": "Optional quality and complexity metrics",
