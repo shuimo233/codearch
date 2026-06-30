@@ -1,83 +1,56 @@
 # CodeArch
 
-> Architecture diagram generation skill for Cursor agents.
+> Architecture diagram generation skill for AI coding agents (Cursor, Claude Code, etc).
 
-从源码自动生成交互式架构图（纯 HTML/CSS + JSON）。支持 Java Spring Boot、Node.js/Express、Python/FastAPI、Go。
+从源码自动生成架构文档。**零外部依赖**，一次扫描产出四份固定文档：人看交互式架构图，Agent 看紧凑知识图谱。
 
-**零外部依赖** — 生成的 HTML 文件完全自包含，纯 HTML/CSS 渲染，无需 CDN、无需下载任何文件，浏览器直接打开即可。
+支持 Java Spring Boot、Node.js/Express、Python/FastAPI、Go。
 
 ## 快速使用
 
-在 Cursor agent 中说：
+在 Agent 中说：
 
 ```
 生成架构图
 architecture diagram
-map the APIs
 ```
 
 ## 目录结构
 
 ```
 docs/architecture/
-├── SKILL.md                    ← Cursor Agent 入口（5 步执行流程）
-├── REFERENCE.md                ← 语言包规则 + schema 参考
-├── architecture.html           ← 交互式架构图（浏览器打开）
-├── LANGUAGES/                  ← 语言支持包
-│   ├── java-spring.yaml        # Java / Spring Boot
-│   ├── nodejs-express.yaml     # Node.js / Express
-│   ├── python-fastapi.yaml     # Python / FastAPI
-│   └── go-stdlib.yaml          # Go / stdlib
-├── TEMPLATES/                  ← 输出模板
-│   ├── architecture.html       # HTML 视图模板（纯 HTML/CSS）
-│   ├── system-data.json        # JSON 数据模板
-└── SCRIPTS/
-    ├── install.sh              # 一键安装
-    ├── update.sh               # 更新语言包
-    ├── test-codearch-full.js   # 完整测试套件
-    └── TEST_GUIDE.md           # 测试指南
+├── SKILL.md                     ← Agent 入口（8 步执行流程）
+├── REFERENCE.md                 ← 语言包规则 + schema 参考
+├── LANGUAGES/                   ← 语言支持包
+│   ├── README.md                # 扩展指南
+│   ├── java-spring.yaml         # Java / Spring Boot
+│   ├── nodejs-express.yaml      # Node.js / Express
+│   ├── python-fastapi.yaml      # Python / FastAPI
+│   └── go-stdlib.yaml           # Go / stdlib
+└── TEMPLATES/                   ← 输出模板
+    ├── architecture.html        # 交互式架构图（纯 HTML/CSS）
+    ├── system-data.json         # 统一数据源 schema（V2）
+    └── README.onboard.md        # 人类导航文档模板
 ```
 
 ## 工作原理
 
-1. **检测语言** — 匹配 `pom.xml`/`package.json`/`requirements.txt` 等信号
-2. **扫描组件** — 按目录约定提取 Controller/Service/Repository/Entity
-3. **推断依赖** — 从 `@Autowired`、注入字段、命名约定推断组件关系
-4. **检测外部服务** — 从配置和 import 识别 MySQL/Redis/Neo4j/Qdrant 等
-5. **渲染输出** — 生成 `architecture.html` + `system-data.json`
+1. **检测语言** — 匹配 `pom.xml`/`package.json`/`requirements.txt`/`go.mod` 信号
+2. **扫描组件** — 按目录约定提取 Controller/Service/Repository/Entity 等
+3. **推断依赖** — 从注入注解、导入语句、命名约定推断组件关系
+4. **检测外部服务** — 从配置和 import 识别 MySQL/Redis/Kafka 等
+5. **影响分析** — 热点检测、死代码、循环依赖
+6. **生成导览** — 项目摘要、推荐入口、关键流程、注意事项
+7. **三态输出** — 同时产出 `architecture.html` + `graph.json` + `README.onboard.md` + `system-data.json`
 
-## 输出格式
+## 输出文件
 
-| 文件 | 说明 |
-|------|------|
-| `architecture.html` | 交互式架构图（纯 HTML/CSS），支持缩放/平移/域过滤/节点高亮/API 测试 |
-| `system-data.json` | 结构化 JSON，可被 CI 工具消费 |
-
-### 架构图功能
-
-- **分层视图** — 按 Frontend/Entry/Service/Data/Infra 分层展示
-- **流程视图** — 水平布局展示组件流向
-- **交互式高亮** — 点击组件高亮相关组件
-- **域过滤** — 按业务域筛选组件
-- **搜索** — 快速定位组件/路由
-- **API 测试** — 直接在图中测试后端 API
-- **主题切换** — 支持浅色/深色模式
-
-## 安装
-
-```bash
-./SCRIPTS/install.sh
-```
-
-## 测试
-
-```bash
-# 运行完整测试套件
-node ./SCRIPTS/test-codearch-full.js
-
-# 或参考测试指南
-cat ./SCRIPTS/TEST_GUIDE.md
-```
+| 文件 | 面向 | 说明 |
+|------|------|------|
+| `architecture.html` | 人类 | 交互式架构图（零依赖纯 HTML/CSS），缩放/平移/过滤/高亮/API 测试 |
+| `README.onboard.md` | 人类 | 叙事架构导览——从哪开始读、有什么坑 |
+| `graph.json` | AI Agent | 紧凑知识图谱（~1200 tokens），可快速注入上下文 |
+| `system-data.json` | 工具 | 统一数据源，包含 onboarding/impact 数据 |
 
 ## 支持的语言
 
