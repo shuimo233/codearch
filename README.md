@@ -6,31 +6,82 @@
 
 支持 Java Spring Boot、Node.js/Express、Python/FastAPI、Go。
 
-## 快速使用
+## 安装
 
-在 Agent 中说：
+### Claude Code
+
+**项目级安装**（仅当前项目可用）：
+
+```bash
+# 在项目根目录执行
+git clone https://github.com/shuimo233/codearch.git .claude/skills/codearch
+```
+
+**全局安装**（所有项目可用）：
+
+```bash
+mkdir -p ~/.claude/skills
+git clone https://github.com/shuimo233/codearch.git ~/.claude/skills/codearch
+```
+
+### Cursor
+
+**项目级安装**：
+
+```bash
+git clone https://github.com/shuimo233/codearch.git .cursor/skills/codearch
+```
+
+**全局安装**：
+
+```bash
+mkdir -p ~/.cursor/skills
+git clone https://github.com/shuimo233/codearch.git ~/.cursor/skills/codearch
+```
+
+### 其他 Agent（通用方式）
+
+将 `docs/architecture/` 目录复制到项目根目录，Agent 即可读取 `SKILL.md` 执行：
+
+```bash
+git clone https://github.com/shuimo233/codearch.git /tmp/codearch
+cp -r /tmp/codearch/docs/architecture ./docs/architecture
+rm -rf /tmp/codearch
+```
+
+### 验证安装
+
+安装后在 Agent 中输入以下任意一句即可触发：
 
 ```
 生成架构图
 architecture diagram
 ```
 
+如果 Agent 正确加载了 Skill，它会按照 SKILL.md 的 8 步流程执行扫描并生成输出文件。
+
+> **注意**：如果 Agent 没有自动识别，可以显式引用 Skill 文件：
+> - Claude Code: `/skill` 然后选择 codearch，或输入 `请按照 docs/architecture/SKILL.md 执行`
+> - Cursor: `@skill codearch` 或 `请按照 .cursor/skills/codearch/SKILL.md 执行`
+
 ## 目录结构
 
 ```
-docs/architecture/
-├── SKILL.md                     ← Agent 入口（8 步执行流程）
-├── REFERENCE.md                 ← 语言包规则 + schema 参考
-├── LANGUAGES/                   ← 语言支持包
-│   ├── README.md                # 扩展指南
-│   ├── java-spring.yaml         # Java / Spring Boot
-│   ├── nodejs-express.yaml      # Node.js / Express
-│   ├── python-fastapi.yaml      # Python / FastAPI
-│   └── go-stdlib.yaml           # Go / stdlib
-└── TEMPLATES/                   ← 输出模板
-    ├── architecture.html        # 交互式架构图（纯 HTML/CSS）
-    ├── system-data.json         # 统一数据源 schema（V2）
-    └── README.onboard.md        # 人类导航文档模板
+codearch/
+├── SKILL.md                         ← Agent 入口（触发条件 + 流程摘要）
+└── docs/architecture/
+    ├── SKILL.md                     ← 完整 8 步执行流程
+    ├── REFERENCE.md                 ← 语言包规则 + schema 参考
+    ├── LANGUAGES/                   ← 语言支持包
+    │   ├── README.md                # 扩展指南
+    │   ├── java-spring.yaml         # Java / Spring Boot
+    │   ├── nodejs-express.yaml      # Node.js / Express
+    │   ├── python-fastapi.yaml      # Python / FastAPI
+    │   └── go-stdlib.yaml           # Go / stdlib
+    └── TEMPLATES/                   ← 输出模板
+        ├── architecture.html        # 交互式架构图（纯 HTML/CSS）
+        ├── system-data.json         # 统一数据源 schema（V2）
+        └── README.onboard.md        # 人类导航文档模板
 ```
 
 ## 工作原理
